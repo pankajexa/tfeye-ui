@@ -11,10 +11,8 @@ import { dateFormat } from "@/utils/dateFormat";
 
 const PendingForReview = () => {
   const { data, loading, error } = useAnalyses("pending", 50, 0);
-  const [rejectedChallans, setRejectedChallans] = useState([]);
   const [pendingReviews, setPendingReviews] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-
 
   useEffect(() => {
     if (data?.data?.length > 0) {
@@ -73,15 +71,15 @@ const PendingForReview = () => {
       header: "Image ID",
       cell: ({ row }) => (
         <div className="flex  gap-3 items-center text-sm">
-          <image
+          {/* <image
             src={row?.original?.image_url || "/placeholder.png"}
             alt="vehicle image"
             className="w-[40px] h-[40px] object-cover rounded-sm border"
-          />
-          <div>
-            <p className="font-medium text-gray-900">{row?.original?.uuid}</p>
-            <p className=" text-gray-600">{row?.original?.email}</p>
-          </div>
+          /> */}
+          <Link to={`/pending-review/${row?.original?.uuid}`}>
+            <p className="font-medium text-gray-900 hover:text-purple-500">{row?.original?.uuid}</p>
+            <p className=" text-gray-600">{row?.original?.point_name}</p>
+          </Link>
         </div>
       ),
     },
@@ -118,12 +116,12 @@ const PendingForReview = () => {
   ];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-screen">
       <Header
         LeftSideHeader={<LeftSideHeader />}
         RightSideHeader={<RightSideHeader />}
       />
-      <div className=" flex-grow  m-6">
+      <div className="flex flex-col flex-grow m-6">
         <ReusableTable
           columns={columns}
           data={pendingReviews}
