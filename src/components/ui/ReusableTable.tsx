@@ -12,7 +12,7 @@ export default function ReusableTable({
   data = [],
   visibleColumns = 5,
   currentPage = 1,
-  itemsPerPage = 10,
+  itemsPerPage = 50,
   onPageChange,
   getRowProps = () => ({}),
 }) {
@@ -52,7 +52,7 @@ export default function ReusableTable({
                     .map((header) => (
                       <th
                         key={header.id}
-                        className="px-4 py-2 text-left text-sm font-medium text-gray-600 border-b bg-gray-50"
+                        className="px-4 py-3 text-left text-sm font-medium text-gray-600 border-b bg-gray-50"
                       >
                         {flexRender(
                           header.column.columnDef.header,
@@ -72,7 +72,7 @@ export default function ReusableTable({
           </thead>
 
           <tbody>
-            {paginatedData.length > 0 ? (
+            {/* {paginatedData.length > 0 ? (
               paginatedData.map((row) => {
                 const rowProps = getRowProps(row) || {};
                 return (
@@ -107,20 +107,20 @@ export default function ReusableTable({
                   No data available
                 </td>
               </tr>
-            )}
+            )} */}
           </tbody>
         </table>
       </div>
 
       {/* Pagination pinned to bottom */}
-      <div className="p-3 border-t">
+      {/* <div className="p-3 border-t">
         <Pagination
           totalLength={safeData.length}
           itemsPerPage={itemsPerPage}
           currentPage={currentPage}
           handlePageClick={(e) => onPageChange?.(e.selected + 1)}
         />
-      </div>
+      </div> */}
     </div>
   );
 }
