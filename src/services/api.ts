@@ -1,5 +1,5 @@
 const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_API_URL || "https://trafficeye.onrender.com";
+  (import.meta as any).env?.VITE_BACKEND_API_URL || "https://trafficeye.onrender.com";
 
 // Types for Step-by-Step Analysis Responses
 export interface StepResponse {
@@ -986,12 +986,12 @@ class ApiService {
     return result;
   }
 
-  // OTP Authentication - Mobile Number Based
-  async sendOtpToMobile(mobileNumber: string) {
-    const response = await fetch(`${BACKEND_URL}/api/auth/send-otp-mobile`, {
+  // OTP Authentication - TSeChallan Based (using operatorCD and password)
+  async sendOtpToMobile(operatorCD: string, password: string, idCode: number = 1) {
+    const response = await fetch(`${BACKEND_URL}/api/auth/send-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mobileNumber })
+      body: JSON.stringify({ operatorCD, password, idCode })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.success === false) {
@@ -1000,11 +1000,11 @@ class ApiService {
     return data;
   }
 
-  async verifyOtpForMobile(mobileNumber: string, otp: string) {
-    const response = await fetch(`${BACKEND_URL}/api/auth/verify-otp-mobile`, {
+  async verifyOtpForMobile(operatorCD: string, otp: string) {
+    const response = await fetch(`${BACKEND_URL}/api/auth/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mobileNumber, otp })
+      body: JSON.stringify({ operatorCD, otp })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.success === false) {

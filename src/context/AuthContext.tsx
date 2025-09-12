@@ -17,8 +17,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   currentOfficer: Officer | null;
   isLoading: boolean;
-  sendOtp: (mobileNumber: string) => Promise<void>;
-  verifyOtp: (mobileNumber: string, otp: string) => Promise<boolean>;
+  sendOtp: (operatorCD: string, password: string, idCode?: number) => Promise<void>;
+  verifyOtp: (operatorCD: string, otp: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -61,14 +61,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(false);
   }, []);
 
-  const sendOtp = async (mobileNumber: string) => {
+  const sendOtp = async (operatorCD: string, password: string, idCode: number = 1) => {
     const { apiService } = await import("../services/api");
-    await apiService.sendOtpToMobile(mobileNumber);
+    await apiService.sendOtpToMobile(operatorCD, password, idCode);
   };
 
-  const verifyOtp = async (mobileNumber: string, otp: string): Promise<boolean> => {
+  const verifyOtp = async (operatorCD: string, otp: string): Promise<boolean> => {
     const { apiService } = await import("../services/api");
-    const result = await apiService.verifyOtpForMobile(mobileNumber, otp);
+    const result = await apiService.verifyOtpForMobile(operatorCD, otp);
 
     // Map operator profile to Officer UI type
     const officer: Officer = {

@@ -7,7 +7,8 @@ import { useToast } from "@/components/toast";
 
 const LoginScreen: React.FC = () => {
   const navigate = useNavigate();
-  const [mobileNumber, setMobileNumber] = useState("");
+  const [operatorCD, setOperatorCD] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [otpPhase, setOtpPhase] = useState(false);
@@ -22,11 +23,11 @@ const LoginScreen: React.FC = () => {
 
     try {
       if (!otpPhase) {
-        await sendOtp(mobileNumber.trim());
+        await sendOtp(operatorCD.trim(), password.trim());
         setOtpPhase(true);
-        showSuccessToast({ heading: "OTP Sent", description: "Please enter the OTP sent to your mobile number.", placement: "top-right" });
+        showSuccessToast({ heading: "OTP Sent", description: "Please enter the OTP sent to your registered mobile number.", placement: "top-right" });
       } else {
-        const ok = await verifyOtp(mobileNumber.trim(), otp.trim());
+        const ok = await verifyOtp(operatorCD.trim(), otp.trim());
         if (ok) {
           showSuccessToast({ heading: "Welcome", description: "Login successful.", placement: "top-right" });
           navigate("/dashboard", { replace: true });
@@ -66,26 +67,45 @@ const LoginScreen: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label
-                htmlFor="mobileNumber"
+                htmlFor="operatorCD"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Mobile Number
+                Operator Code
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Smartphone className="h-5 w-5 text-gray-400" />
+                  <Shield className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  id="mobileNumber"
-                  name="mobileNumber"
-                  type="tel"
+                  id="operatorCD"
+                  name="operatorCD"
+                  type="text"
                   required
-                  value={mobileNumber}
-                  onChange={(e) => setMobileNumber(e.target.value)}
+                  value={operatorCD}
+                  onChange={(e) => setOperatorCD(e.target.value)}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  placeholder="Enter your mobile number"
-                  maxLength={10}
-                  pattern="[0-9]{10}"
+                  placeholder="Enter your operator code"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full px-3 py-3 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  placeholder="Enter your password"
                 />
               </div>
             </div>
@@ -133,7 +153,7 @@ const LoginScreen: React.FC = () => {
           {/* Help Text */}
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
-              Authorized personnel only. Enter your registered mobile number to receive OTP.
+              Authorized personnel only. Enter your operator code and password to receive OTP.
             </p>
           </div>
         </div>
