@@ -11,6 +11,7 @@ import { Header } from "../../components";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { Link } from "react-router-dom";
+import { dateFormat } from "@/utils/dateFormat";
 
 export interface StatusCardProps {
   icon: any;
@@ -107,7 +108,7 @@ const Dashboard: React.FC = () => {
         LeftSideHeader={<LeftSideHeader />}
         RightSideHeader={<RightSideHeader />}
       />
-      <div className="p-6 flex-grow space-y-6">
+      <div className="p-6 flex-grow flex flex-col space-y-6">
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Photos Captured */}
@@ -141,7 +142,7 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Violations Section */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white rounded-lg flex-grow shadow-sm border border-gray-200">
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">
@@ -180,11 +181,7 @@ const Dashboard: React.FC = () => {
                     <tr key={row.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {row?.date
-                          ? new Date(row.date).toLocaleString("en-US", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })
+                          ? dateFormat(new Date(row.date), "date")
                           : "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -193,7 +190,6 @@ const Dashboard: React.FC = () => {
                         </span>
                       </td>
 
-                      
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                           {row?.in_process}

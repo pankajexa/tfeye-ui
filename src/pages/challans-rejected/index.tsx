@@ -1,29 +1,26 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Upload, CheckCircle } from "lucide-react";
-import { useChallanContext } from "@/context/ChallanContext";
-import ImageZoom from "@/components/ImageDetails/ImageZoom";
-import { apiService } from "@/services/api";
-import { RejectedSubTab } from "@/types";
 import { Header } from "@/components";
 import { Button } from "@/components/ui/button";
 import { useAnalyses } from "@/hooks/useAnalyses";
 import { Loader } from "../../components";
+import ListGridView from "@/components/ui/ListGridView";
 import { Link } from "react-router-dom";
-
-interface RejectedTabProps {
-  activeSubTab?: RejectedSubTab;
-}
+import ReusableTable from "@/components/ui/ReusableTable";
+import { Badge } from "@/components/ui/Badge";
+import { dateFormat } from "@/utils/dateFormat";
 
 const rejectedSubTabs = [
-  { id: "system-rejected" as RejectedSubTab, label: "System Rejected" },
-  { id: "operator-rejected" as RejectedSubTab, label: "Operator Rejected" },
-  { id: "rta-mismatch" as RejectedSubTab, label: "RTA Mismatch" },
+  { id: "all", name: "All" },
+  { id: "system-rejected", name: "System Rejected" },
+  { id: "operator-rejected", name: "Operator Rejected" },
 ];
 
-const ChallansRejected: React.FC<RejectedTabProps> = ({
-}) => {
+const ChallansRejected = () => {
   const { data, loading, error } = useAnalyses("rejected", 50, 0);
   const [rejectedChallans, setRejectedChallans] = useState([]);
+  const [searchStatus, setSearchStatus] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (data?.data?.length > 0) {
@@ -57,7 +54,7 @@ const ChallansRejected: React.FC<RejectedTabProps> = ({
     );
   };
 
-  // Show loading state
+  //Show loading state
   if (loading) {
     return <Loader />;
   }
@@ -79,63 +76,91 @@ const ChallansRejected: React.FC<RejectedTabProps> = ({
     );
   }
 
+  const columns = [
+    {
+      accessorKey: "name",
+      header: "Image ID",
+      cell: ({ row }) => (
+        <div className="flex  gap-3 items-center text-sm">
+          {/* <image
+              src={row?.original?.image_url || "/placeholder.png"}
+              alt="vehicle image"
+              className="w-[40px] h-[40px] object-cover rounded-sm border"
+            /> */}
+          <div>
+            <p className="font-medium text-gray-900 hover:text-purple-500">
+              {row?.original?.uuid}
+            </p>
+            <p className=" text-gray-600">{row?.original?.point_name}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "created_at",
+      header: "Captured at",
+      cell: ({ row }) => (
+        <p className="text-sm text-gray-600 font-normal">
+          {dateFormat(row?.original?.created_at, "datetime")}
+        </p>
+      ),
+    },
+    {
+      accessorKey: "point_name",
+      header: "Location",
+      cell: ({ row }) => (
+        <p className="text-sm text-gray-600 font-normal">
+          {row?.original?.point_name}
+        </p>
+      ),
+    },
+
+    {
+      accessorKey: "violation_types",
+      header: "Violation type",
+      cell: ({ row }) => (
+        <div className="space-x-2 flex flex-wrap">
+          {row?.original?.vio_data?.map((vio, index) => (
+            <Badge key={index}>{vio?.detected_violation}</Badge>
+          ))}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col h-full">
       <Header
         LeftSideHeader={<LeftSideHeader />}
         RightSideHeader={<RightSideHeader />}
       />
-      <div className="bg-white flex-grow border rounded-lg shadow-sm  border-gray-200 m-6">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
-              <tr>
-                <th className="px-6 py-3 ">ID</th>
-                <th className="px-6 py-3">Date</th>
-                <th className="px-6 py-3">Name</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3">Review reason</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {rejectedChallans?.map((challan) => (
-                <tr key={challan?.id}>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {challan?.id}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {challan?.reviewed_at
-                      ? new Date(challan?.reviewed_at).toLocaleDateString(
-                          "en-US",
-                          {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
-                        )
-                      : "-"}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {challan?.filename ?? "-"}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span
-                      title={challan?.review_reason ?? "Rejected"}
-                      className="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 inset-ring inset-ring-red-600/10 uppercase"
-                    >
-                      {challan?.review_action ?? "Rejected"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {challan?.review_reason ?? "Rejected"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="flex flex-col flex-grow m-6">
+        {/* <div>
+          <div className="mb-5">
+            <h2 className="text-lg flex items-center gap-1.5 text-gray-900 font-semibold">
+              Challans Rejected{" "}
+              <Badge rounded={"full"} variant="purple">
+                20
+              </Badge>{" "}
+            </h2>
+          </div>
         </div>
+        <div className="max-w-fit mb-3">
+          <ListGridView
+            nameShow={true}
+            templateViewType={searchStatus}
+            options={rejectedSubTabs}
+            onChange={(status) => setSearchStatus(status)}
+          />
+        </div> */}
+        <ReusableTable
+          columns={columns}
+          data={rejectedChallans}
+          visibleColumns={5}
+          currentPage={currentPage}
+          itemsPerPage={50}
+          onPageChange={(page) => setCurrentPage(page)}
+        />
       </div>
     </div>
   );
