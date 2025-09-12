@@ -47,7 +47,6 @@ const PendingForReview = () => {
     );
   };
 
-  // Show loading state
   if (loading) {
     return <Loader />;
   }
