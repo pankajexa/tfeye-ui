@@ -1040,6 +1040,55 @@ class ApiService {
     return data as { success: boolean; operatorProfile: any; operatorToken: string; appSessionToken: string };
   }
 
+  // Challan Generation API
+  async generateChallan(
+    challanData: any,
+    imageFile: File,
+    videoFile?: File,
+    operatorToken?: string
+  ): Promise<{ success: boolean; data?: any; challanNumber?: string; message?: string; error?: string }> {
+    try {
+      console.log('🚔 Generating challan with TSeChallan API...');
+
+      // Prepare FormData
+      const formData = new FormData();
+      formData.append('image', imageFile);
+
+      if (videoFile) {
+        formData.append('video', videoFile);
+      }
+
+      // Add challan data as JSON string
+      formData.append('data', JSON.stringify(challanData));
+
+      // Prepare headers with operator token
+      const headers: Record<string, string> = {};
+      if (operatorToken) {
+        headers['Authorization'] = `Bearer ${operatorToken}`;
+      }
+
+      const response = await fetch(`${BACKEND_URL}/api/generate-challan`, {
+        method: 'POST',
+        headers,
+        body: formData
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || `Challan generation failed: ${response.status}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('❌ Challan generation error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
   // NEW: Upload image directly to backend with officer and point details
   async uploadImageToBackend(
     imageFile: File,

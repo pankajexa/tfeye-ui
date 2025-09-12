@@ -282,39 +282,157 @@ const PendingForReview: React.FC = () => {
         return;
       }
 
-      const response = await fetch(
-        `${globals?.BASE_URL}/api/v1/analyses/${activeChallana?.id}/review?status=approved`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      console.log('🚔 Starting challan generation process...');
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Something went wrong");
+      // First, get the operator token from localStorage
+      const authData = localStorage.getItem('traffic_challan_auth');
+      if (!authData) {
+        throw new Error('Authentication data not found. Please login again.');
       }
 
+      const { operatorToken } = JSON.parse(authData);
+      if (!operatorToken) {
+        throw new Error('Operator token not found. Please login again.');
+      }
+
+      // First, fetch the analysis results data from database to get correct field values
+      console.log('📊 Fetching analysis results for UUID:', activeChallana?.uuid || activeChallana?.id);
+      let analysisResults = null;
+      try {
+        const response = await fetch(
+          `${globals?.BASE_URL}/api/analysis/${activeChallana?.uuid || activeChallana?.id}`
+        );
+        if (response.ok) {
+          analysisResults = await response.json();
+          console.log('✅ Analysis results fetched:', analysisResults);
+        } else {
+          console.warn('⚠️ Could not fetch analysis results, using fallback values');
+        }
+      } catch (fetchError) {
+        console.warn('⚠️ Error fetching analysis results:', fetchError);
+      }
+
+      // Extract data from analysis results or use fallbacks
+      const analysisData = analysisResults?.data || analysisResults || {};
+
+      // Prepare challan data for TSeChallan API with correct field mappings
+      const challanData = {
+        offenceDtTime: analysisData.offence_date && analysisData.offence_time
+          ? `${analysisData.offence_date} ${analysisData.offence_time}`
+          : (activeChallana?.created_at
+              ? new Date(activeChallana.created_at).toLocaleString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }).replace(',', '')
+              : new Date().toLocaleString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }).replace(',', '')),
+
+        vioData: analysisData.vio_data
+          ? (Array.isArray(analysisData.vio_data)
+              ? analysisData.vio_data
+              : String(analysisData.vio_data).split(',').map(v => v.trim()))
+          : violations.map(v => v.id || v).filter(Boolean),
+
+        capturedByCD: analysisData.captured_by_cd || analysisData.capturedByCD || 'UNKNOWN',
+
+        operatorCD: analysisData.operator_cd || analysisData.operatorCD || currentOfficer?.id || 'UNKNOWN',
+
+        vehRemak: 'N', // Always 'N' when generating challan
+
+        vehicleNo: analysisData.license_plate_number || analysisData.vehicleNo || activeChallana?.plateNumber || '',
+
+        pointCD: analysisData.point_cd || analysisData.point_name || analysisData.pointCD || activeChallana?.point_name || '230001',
+
+        gpsLatti: analysisData.latitude || analysisData.gpsLatti || '17.414',
+
+        gpsLong: analysisData.longitude || analysisData.gpsLong || '78.4279',
+
+        gpsLocation: analysisData.location || analysisData.gpsLocation || 'TG ICCC, Hyderabad'
+      };
+
+      console.log('📋 Challan data prepared:', challanData);
+
+      // Get the image file
+      let imageFile: File | null = null;
+      try {
+        // First try to get presigned URL and convert to blob
+        const imageResponse = await apiService.getImagePresignedUrl(activeChallana?.uuid || activeChallana?.id);
+        if (imageResponse.success && imageResponse.presignedUrl) {
+          const imageBlob = await fetch(imageResponse.presignedUrl).then(r => r.blob());
+          imageFile = new File([imageBlob], 'violation_image.jpg', { type: 'image/jpeg' });
+        }
+      } catch (imageError) {
+        console.error('❌ Failed to get image file:', imageError);
+        throw new Error('Failed to retrieve image file for challan generation');
+      }
+
+      if (!imageFile) {
+        throw new Error('Image file is required for challan generation');
+      }
+
+      // Generate challan using TSeChallan API
+      const challanResult = await apiService.generateChallan(
+        challanData,
+        imageFile,
+        undefined, // video file (optional)
+        operatorToken
+      );
+
+      if (!challanResult.success) {
+        throw new Error(challanResult.error || 'Challan generation failed');
+      }
+
+      // If challan generation successful, also update local database status
+      try {
+        const response = await fetch(
+          `${globals?.BASE_URL}/api/v1/analyses/${activeChallana?.id}/review?status=approved`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
+        if (!response.ok) {
+          console.warn('⚠️ Local database update failed, but challan was generated successfully');
+        }
+      } catch (dbError) {
+        console.warn('⚠️ Local database update failed:', dbError);
+      }
+
+      // Show success message with challan number if available
+      const challanNumber = challanResult.challanNumber || 'Generated';
       showSuccessToast({
-        heading: "Approved Successfully",
-        description: `Challan ${activeChallana?.plateNumber} approved.`,
+        heading: "Challan Generated Successfully",
+        description: `Challan ${challanNumber} has been generated for vehicle ${activeChallana?.plateNumber}.`,
         placement: "top-right",
       });
 
-      // Auto-move to next challan after approval
+      // Auto-move to next challan after successful generation
       if (currentIndex < pendingReviews.length - 1) {
         setCurrentIndex(currentIndex + 1);
         setActiveChallana(pendingReviews[currentIndex + 1]);
       }
+
+      // Remove from pending reviews list
       const newPendingReviews = pendingReviews?.filter(
         (item) => item.id !== activeChallana?.id
       );
       setPendingReviews(newPendingReviews);
       setShowGenerateConfirmation(false);
+
     } catch (error: any) {
+      console.error('💥 Challan generation error:', error);
       showErrorToast({
-        heading: "Error",
-        description: error.message || "Failed to approve challan.",
+        heading: "Challan Generation Failed",
+        description: error.message || "Failed to generate challan. Please try again.",
         placement: "top-right",
       });
     } finally {
@@ -365,7 +483,7 @@ const PendingForReview: React.FC = () => {
           onClick={() => setShowGenerateConfirmation(true)}
         >
           <CheckCircle />
-          Generate e-Challan
+          Generate Challan
         </Button>
       </div>
     );
@@ -448,33 +566,33 @@ const PendingForReview: React.FC = () => {
         onOpenChange={(o) => {
           if (!o) setShowGenerateConfirmation(false);
         }}
-        title="Confirm e-Challan Generation"
+        title="Generate Challan"
         size="md"
-        description="Are you sure you want to generate an e-challan for this violation?"
+        description="This will generate an official challan through TSeChallan API"
         children={
           <div className="space-y-4">
-            {/* <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">
-                    Final Confirmation Required
+                  <h3 className="text-sm font-medium text-blue-800">
+                    Challan Details
                   </h3>
-                  <div className="mt-2 text-sm text-yellow-700">
-                    <p>This action will generate an official e-challan for:</p>
+                  <div className="mt-2 text-sm text-blue-700">
+                    <p>This will generate an official challan for:</p>
                     <ul className="list-disc list-inside mt-2 space-y-1">
                       <li>Vehicle: {activeChallana?.plateNumber || 'N/A'}</li>
-                      <li>Violations: {activeChallana?.violations?.length || 0} detected</li>
+                      <li>Violations: {violations?.length || 0} selected</li>
+                      <li>Officer: {currentOfficer?.name || 'Unknown'}</li>
                     </ul>
-                    <p className="mt-2 font-medium">This action cannot be undone.</p>
                   </div>
                 </div>
               </div>
-            </div> */}
+            </div>
           </div>
         }
         footer={
@@ -486,7 +604,7 @@ const PendingForReview: React.FC = () => {
               Cancel
             </Button>
             <Button disabled={buttonLoader} onClick={handleApprovedChallana}>
-              {buttonLoader ? "Generating..." : "Confirm & Generate"}
+              {buttonLoader ? "Generating Challan..." : "Generate Challan"}
             </Button>
           </div>
         }
