@@ -13,6 +13,7 @@ import {
   RotateCcw,
   User,
 } from "lucide-react";
+import { BACKEND_URL } from "@/constants/globalConstants";
 
 interface UploadedImage {
   id: string;
@@ -24,8 +25,6 @@ interface UploadedImage {
   backendResponse?: any;
 }
 
-const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_API_URL || "https://trafficeye.onrender.com";
 
 const MAX_IMAGES = 20;
 const ACCEPTED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];

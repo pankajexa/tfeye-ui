@@ -1,5 +1,4 @@
-const BACKEND_URL =
-  (import.meta as any).env?.VITE_BACKEND_API_URL || "https://trafficeye.onrender.com";
+import { BACKEND_URL } from "@/constants/globalConstants";
 
 // Types for Step-by-Step Analysis Responses
 export interface StepResponse {

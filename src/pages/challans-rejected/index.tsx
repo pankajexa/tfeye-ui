@@ -11,15 +11,17 @@ import { Badge } from "@/components/ui/Badge";
 import { dateFormat } from "@/utils/dateFormat";
 
 const rejectedSubTabs = [
-  { id: "all", name: "All" },
+  // { id: "all", name: "All" },
   { id: "system-rejected", name: "System Rejected" },
   { id: "operator-rejected", name: "Operator Rejected" },
 ];
 
 const ChallansRejected = () => {
-  const { data, loading, error } = useAnalyses("rejected", 50, 0);
+  const { data, loading, error, refetch } = useAnalyses(
+    `api/v1/analyses?status=rejected&limit=50&offset=0`
+  );
   const [rejectedChallans, setRejectedChallans] = useState([]);
-  const [searchStatus, setSearchStatus] = useState("all");
+  const [searchStatus, setSearchStatus] = useState("system-rejected");
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -88,7 +90,7 @@ const ChallansRejected = () => {
               className="w-[40px] h-[40px] object-cover rounded-sm border"
             /> */}
           <div>
-            <p className="font-medium text-gray-900 hover:text-purple-500">
+            <p className="font-medium text-gray-900">
               {row?.original?.uuid}
             </p>
             <p className=" text-gray-600">{row?.original?.point_name}</p>
@@ -128,6 +130,10 @@ const ChallansRejected = () => {
     },
   ];
 
+  const loadNext = (url: string) => {
+    refetch(url);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <Header
@@ -135,12 +141,12 @@ const ChallansRejected = () => {
         RightSideHeader={<RightSideHeader />}
       />
       <div className="flex flex-col flex-grow m-6">
-        {/* <div>
+        <div>
           <div className="mb-5">
             <h2 className="text-lg flex items-center gap-1.5 text-gray-900 font-semibold">
               Challans Rejected{" "}
               <Badge rounded={"full"} variant="purple">
-                20
+                {rejectedChallans?.length || 0}
               </Badge>{" "}
             </h2>
           </div>
@@ -150,16 +156,28 @@ const ChallansRejected = () => {
             nameShow={true}
             templateViewType={searchStatus}
             options={rejectedSubTabs}
-            onChange={(status) => setSearchStatus(status)}
+            onChange={(status) => {
+              setSearchStatus(status);
+              loadNext(
+                `api/v1/analyses?status=rejected&sub_status=${status}&limit=50&offset=${
+                  currentPage - 1
+                }`
+              );
+            }}
           />
-        </div> */}
+        </div>
         <ReusableTable
           columns={columns}
           data={rejectedChallans}
           visibleColumns={5}
           currentPage={currentPage}
           itemsPerPage={50}
-          onPageChange={(page) => setCurrentPage(page)}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            loadNext(
+              `api/v1/analyses?status=rejected&limit=50&offset=${page - 1}`
+            );
+          }}
         />
       </div>
     </div>

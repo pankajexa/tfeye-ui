@@ -43,7 +43,9 @@ interface ViolationType {
 const ChallanDetails: React.FC = () => {
   const { currentOfficer } = useAuth();
   const { id } = useParams();
-  const { data, loading, refetch } = useAnalyses("pending", 50, 0);
+  const { data, loading, error,refetch } = useAnalyses(
+    `api/v1/analyses?status=pending&limit=50&offset=0`
+  );
   const [pendingReviews, setPendingReviews] = useState<Challan[]>([]);
   const [showRejectOptions, setShowRejectOptions] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -60,7 +62,6 @@ const ChallanDetails: React.FC = () => {
   const [violations, setViolations] = useState<string[]>([]);
   const rejectButtonRef = useRef<HTMLButtonElement>(null);
   const approveButtonRef = useRef<HTMLButtonElement>(null);
-
 
   useEffect(() => {
     if (data?.data?.length > 0) {
@@ -531,7 +532,6 @@ const ChallanDetails: React.FC = () => {
             currentIndex={currentIndex}
             setActiveChallana={setActiveChallana}
             activeChallana={activeChallana}
-            refetch={refetch}
             allViolationData={allViolationData}
             handleUpdateChallan={handleUpdateChallan}
             setAllViolationData={setAllViolationData}

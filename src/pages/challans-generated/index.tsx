@@ -8,7 +8,9 @@ import { Link } from "react-router-dom";
 import ReusableTable from "@/components/ui/ReusableTable";
 
 const ChallansGenerated: React.FC = () => {
-  const { data, loading, error } = useAnalyses("generated", 50, 0);
+    const { data, loading, error } = useAnalyses(
+    `api/v1/analyses?status=generated&limit=50&offset=0`
+  );
   const [approvedChallans, setApprovedChallans] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -18,76 +20,6 @@ const ChallansGenerated: React.FC = () => {
     }
   }, [data]);
 
-//  const columns = [
-//   {
-//     accessorKey: "name",
-//     header: "User Info",
-//     cell: ({ row }) => (
-//       <div className="flex flex-col">
-//         <span className="font-medium">{row.original.name}</span>
-//         <span className="text-xs text-gray-500">{row.original.email}</span>
-//       </div>
-//     ),
-//   },
-//   {
-//     accessorKey: "role",
-//     header: "Actions",
-//     cell: ({ row }) => (
-//       <div className="flex gap-2">
-//         <button className="text-blue-600 hover:underline">View</button>
-//         <button className="text-red-600 hover:underline">Delete</button>
-//       </div>
-//     ),
-//   },
-// ];
-
-//   const sampleData = [
-//     {
-//       id: 1,
-//       name: "John Doe",
-//       email: "john@example.com",
-//       role: "Developer",
-//       status: "Active",
-//       department: "Engineering",
-//       location: "Bangalore",
-//     },
-//     {
-//       id: 2,
-//       name: "Jane Smith",
-//       email: "jane@example.com",
-//       role: "Designer",
-//       status: "Inactive",
-//       department: "Design",
-//       location: "Mumbai",
-//     },
-//     {
-//       id: 3,
-//       name: "Alice Brown",
-//       email: "alice@example.com",
-//       role: "Product Manager",
-//       status: "Active",
-//       department: "Product",
-//       location: "Hyderabad",
-//     },
-//     {
-//       id: 4,
-//       name: "Bob Williams",
-//       email: "bob@example.com",
-//       role: "QA Engineer",
-//       status: "Active",
-//       department: "QA",
-//       location: "Delhi",
-//     },
-//     {
-//       id: 5,
-//       name: "Charlie Green",
-//       email: "charlie@example.com",
-//       role: "HR",
-//       status: "Inactive",
-//       department: "Human Resources",
-//       location: "Chennai",
-//     },
-//   ];
 
   const LeftSideHeader = () => {
     return (

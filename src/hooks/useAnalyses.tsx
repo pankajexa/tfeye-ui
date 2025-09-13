@@ -1,36 +1,44 @@
 import { useEffect, useState, useCallback } from "react";
+import { BACKEND_URL } from "@/constants/globalConstants";
 
-const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_API_URL || "https://trafficeye.onrender.com";
-
-export function useAnalyses(status = "", limit = 50, offset = 0) {
+export function useAnalyses(initialUrl?: string) {
+  const [url, setUrl] = useState(initialUrl); // keep track of current URL
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAnalyses = useCallback(async () => {
+  const fetchAnalyses = useCallback(async (newUrl?: string) => {
+    const finalUrl = newUrl || url; // use newUrl if passed, else last stored url
+    if (!finalUrl) return;
+
     try {
       setLoading(true);
-      const response = await fetch(
-        `${BACKEND_URL}/api/v1/analyses?status=${status}&limit=${limit}&offset=${offset}`
-      );
+
+      // Allow both relative paths ("api/v1/...") and full URLs
+      const fullUrl = `${BACKEND_URL}/${finalUrl}`;
+
+      const response = await fetch(fullUrl);
       if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
       }
+
       const result = await response.json();
       setData(result);
+      setError(null);
+
+      if (newUrl) setUrl(newUrl); // update stored URL if new one is passed
     } catch (err: any) {
       setError(err?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
-  }, [status, limit, offset]);
+  }, []);
 
   useEffect(() => {
-    if (status) {
-      fetchAnalyses();
+    if (initialUrl) {
+      fetchAnalyses(initialUrl);
     }
-  }, [status, limit, offset, fetchAnalyses]);
+  }, [initialUrl, fetchAnalyses]);
 
   return { data, loading, error, refetch: fetchAnalyses };
 }

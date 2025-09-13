@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/Badge";
 import { dateFormat } from "@/utils/dateFormat";
 
 const PendingForReview = () => {
-  const { data, loading, error } = useAnalyses("pending", 50, 0);
+  const { data, loading, error } = useAnalyses(
+    `api/v1/analyses?status=pending&limit=50&offset=0`
+  );
   const [pendingReviews, setPendingReviews] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -76,7 +78,9 @@ const PendingForReview = () => {
             className="w-[40px] h-[40px] object-cover rounded-sm border"
           /> */}
           <Link to={`/pending-review/${row?.original?.uuid}`}>
-            <p className="font-medium text-gray-900 hover:text-purple-500">{row?.original?.uuid}</p>
+            <p className="font-medium text-gray-900 hover:text-purple-500">
+              {row?.original?.uuid}
+            </p>
             <p className=" text-gray-600">{row?.original?.point_name}</p>
           </Link>
         </div>
@@ -121,6 +125,16 @@ const PendingForReview = () => {
         RightSideHeader={<RightSideHeader />}
       />
       <div className="flex flex-col flex-grow m-6">
+        <div className="w-full pb-6">
+          <div className="">
+            <h2 className="text-lg flex items-center gap-1.5 text-gray-900 font-semibold">
+              Challans{" "}
+              <Badge rounded={"full"} variant="purple">
+                {pendingReviews?.length || 0}
+              </Badge>{" "}
+            </h2>
+          </div>
+        </div>
         <ReusableTable
           columns={columns}
           data={pendingReviews}
@@ -128,6 +142,7 @@ const PendingForReview = () => {
           currentPage={currentPage}
           itemsPerPage={50}
           onPageChange={(page) => setCurrentPage(page)}
+          tableHeight={"h-[calc(100vh-174px)]"}
         />
       </div>
     </div>

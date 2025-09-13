@@ -5,6 +5,7 @@ import { Button } from "../ui/button";
 import { Modal } from "../../components/ui/modal";
 import { useToast } from "@/components/toast";
 import { Challan } from "@/types";
+import { BACKEND_URL } from "@/constants/globalConstants";
 
 interface ViolationType {
   id: string | number;
@@ -21,14 +22,11 @@ interface ImageDetailsProps {
   setCurrentIndex: (index: number) => void;
   activeChallana: Challan | null;
   setActiveChallana: (challan: Challan | null) => void;
-  refetch: () => void;
   handleUpdateChallan: (challanId: any, value: any, type: any) => void;
   allViolationData: ViolationType[];
   setAllViolationData: (violations: ViolationType[]) => void;
 }
 
-const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_API_URL || "https://trafficeye.onrender.com";
 
 const rejectionReasons = [
   { id: "Poor image quality", name: "Poor image quality" },
@@ -47,7 +45,6 @@ const ImageDetails = ({
   setCurrentIndex,
   activeChallana,
   setActiveChallana,
-  refetch,
   handleUpdateChallan,
   allViolationData,
   setAllViolationData,

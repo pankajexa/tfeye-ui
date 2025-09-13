@@ -12,14 +12,13 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { Link } from "react-router-dom";
 import { dateFormat } from "@/utils/dateFormat";
+import { BACKEND_URL } from "@/constants/globalConstants";
 
 export interface StatusCardProps {
   icon: any;
   label: string;
   value: string | number;
 }
-const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_API_URL || "https://trafficeye.onrender.com";
 const Dashboard: React.FC = () => {
   const { currentOfficer } = useAuth();
 
