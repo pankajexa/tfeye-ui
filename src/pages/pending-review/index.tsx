@@ -242,6 +242,70 @@ const PendingForReview = () => {
           totalRecords={data?.pagination?.total_count || 0}
         />
       </div>
+
+      {/* Duplicate Analysis Modal */}
+      <Modal
+        open={showDuplicateModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowDuplicateModal(false);
+            setSelectedAnalysis(null);
+            setManualLicensePlate("");
+            setModificationReason("");
+          }
+        }}
+        title="Create Duplicate Analysis"
+        description="Create a duplicate analysis with a corrected license plate number."
+      >
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-900">Original License Plate</label>
+            <Input
+              value={selectedAnalysis?.licensePlate || ""}
+              disabled
+              placeholder="Original license plate"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-900">
+              Corrected License Plate <span className="text-red-500">*</span>
+            </label>
+            <Input
+              value={manualLicensePlate}
+              onChange={(e) => setManualLicensePlate(e.target.value)}
+              placeholder="Enter corrected license plate"
+              autoFocus
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-900">Modification Reason</label>
+            <Input
+              value={modificationReason}
+              onChange={(e) => setModificationReason(e.target.value)}
+              placeholder="Enter reason for correction (optional)"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-4 mt-4">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowDuplicateModal(false);
+              setSelectedAnalysis(null);
+              setManualLicensePlate("");
+              setModificationReason("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDuplicateAnalysis}
+            disabled={duplicateLoading || !manualLicensePlate.trim()}
+          >
+            {duplicateLoading ? "Creating..." : "Create Duplicate"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };
