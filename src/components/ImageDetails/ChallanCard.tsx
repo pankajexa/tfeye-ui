@@ -123,7 +123,6 @@ const ChallanCard = ({
   }, [challanUuid]);
 
   const handleUpdateNumber = () => {
-    const numberPlateRegex = /^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$/;
     if (!registrationNumber.trim()) {
       showErrorToast({
         heading: "Invalid Number",
@@ -157,15 +156,6 @@ const ChallanCard = ({
     //   return;
     // }
 
-    if (!numberPlateRegex.test(registrationNumber)) {
-      showErrorToast({
-        heading: "Invalid Format",
-        description:
-          "Please enter a valid Indian registration number (e.g., TS13ER5007).",
-        placement: "top-right",
-      });
-      return;
-    }
 
     onAction(registrationNumber, "NUMBER_UPDATE");
   };
