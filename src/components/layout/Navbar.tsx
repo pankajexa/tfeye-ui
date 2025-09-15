@@ -40,7 +40,7 @@ const Navbar: React.FC<NavbarProps> = ({ pathname }) => {
       url: "/pending-review",
       icon: FileText,
       count: 0,
-      isActive: pathname === "/pending-review",
+      isActive: pathname.startsWith("/pending-review"),
     },
     // {
     //   title: "Challans Generated",
