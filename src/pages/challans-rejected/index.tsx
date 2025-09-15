@@ -53,35 +53,44 @@ const ChallansRejected = () => {
   if (loading) {
     return <Loader />;
   }
-  if (data?.data?.length === 0) {
-    return (
-      <div className="p-8 text-center">
-        <CheckCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
-          No Rejected Challans
-        </h3>
-        <p className="text-gray-500 mb-4">
-          There are currently no challans marked as rejected.
-        </p>
-        <p className="text-sm text-gray-400">
-          Once a challan is reviewed and rejected by an officer, it will appear
-          in this list.
-        </p>
-      </div>
-    );
-  }
+
+  const getNavigationLink = (id: string) => {
+    let url = `/challans-rejected/${id}`;
+    const queryParams: string[] = [];
+
+    if (searchStatus) {
+      queryParams.push(`sub_status=${encodeURIComponent(searchStatus)}`);
+    }
+
+    if (queryParams.length > 0) {
+      url += `?${queryParams.join("&")}`;
+    }
+
+    return url;
+  };
 
   const columns = [
     {
       accessorKey: "license_plate_number",
       header: "Vehicle Number",
-      cell: ({ row }) => (
-        <div className="flex gap-3 items-center text-sm">
-          <p className="font-medium text-gray-900">
-            {row?.original?.license_plate_number || "N/A"}
-          </p>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const licensePlate = row?.original?.license_plate_number || "N/A";
+        const id = row?.original?.id;
+
+        return (
+          <div className="flex gap-3 items-center text-sm">
+            {searchStatus === "system_rejected" ? (
+              <Link to={getNavigationLink(id)}>
+                <p className="font-medium text-gray-900 hover:text-purple-500">
+                  {licensePlate}
+                </p>
+              </Link>
+            ) : (
+              <p className="font-medium text-gray-900">{licensePlate}</p>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "created_at",

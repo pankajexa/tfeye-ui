@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Upload, CheckCircle } from "lucide-react";
 import { Header } from "@/components";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,16 @@ import { Link } from "react-router-dom";
 import ReusableTable from "@/components/ui/ReusableTable";
 import { Badge } from "@/components/ui/Badge";
 import { dateFormat } from "@/utils/dateFormat";
+import { usePointNames } from "@/hooks/usePointNames";
+import { Select } from "@/components/ui/select";
 
 const PendingForReview = () => {
   const { data, loading, error, refetch } = useAnalyses(
     `api/v1/analyses?status=pending&items_per_page=50&page=1`
   );
+  const { pointDetails, loading: pLoading, error: pError } = usePointNames();
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedPointName, setSelectedPointName] = useState(null);
 
   const loadNext = (url: string) => {
     refetch(url);
@@ -45,27 +49,27 @@ const PendingForReview = () => {
     return <Loader />;
   }
 
-  if (data?.data?.length === 0) {
-    return (
-      <div className="p-8 text-center">
-        <CheckCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
-          No Pending Reviews
-        </h3>
-        <p className="text-gray-500 mb-4">
-          There are currently no challans pending for review.
-        </p>
-      </div>
-    );
-  }
+  const getNavigationLink = (id: string) => {
+    let url = `/pending-review/${id}`;
+    const queryParams: string[] = [];
 
+    if (selectedPointName) {
+      queryParams.push(`point_name=${encodeURIComponent(selectedPointName)}`);
+    }
+
+    if (queryParams.length > 0) {
+      url += `?${queryParams.join("&")}`;
+    }
+
+    return url;
+  };
   const columns = [
     {
       accessorKey: "license_plate_number",
       header: "Vehicle Number",
       cell: ({ row }) => (
         <div className="flex gap-3 items-center text-sm">
-          <Link to={`/pending-review/${row?.original?.id}`}>
+          <Link to={getNavigationLink(row?.original?.id)}>
             <p className="font-medium text-gray-900 hover:text-purple-500">
               {row?.original?.license_plate_number || "N/A"}
             </p>
@@ -120,13 +124,32 @@ const PendingForReview = () => {
         RightSideHeader={<RightSideHeader />}
       />
       <div className="flex flex-col flex-grow m-6">
-        <div className="w-full pb-6">
+        <div className="w-full flex items-center justify-between pb-3">
           <h2 className="text-lg flex items-center gap-1.5 text-gray-900 font-semibold">
             Challans{" "}
             <Badge rounded="full" variant="purple">
               {data?.pagination?.total_count || 0}
             </Badge>
           </h2>
+          <div className="w-[320px]">
+            <Select
+              label=""
+              placeholder="Select point name"
+              value={selectedPointName}
+              onValueChange={(value) => {
+                let url = `api/v1/analyses?status=pending&items_per_page=50&page=${currentPage}`;
+
+                if (value) {
+                  url += `&point_name=${encodeURIComponent(value)}`;
+                }
+
+                loadNext(url);
+                setSelectedPointName(value as string);
+              }}
+              options={pointDetails || []}
+              searchable={true}
+            />
+          </div>
         </div>
         <ReusableTable
           key={currentPage}
@@ -137,11 +160,15 @@ const PendingForReview = () => {
           itemsPerPage={50}
           onPageChange={(page) => {
             setCurrentPage(page);
-            loadNext(
-              `api/v1/analyses?status=pending&items_per_page=50&page=${page}`
-            );
+            let url = `api/v1/analyses?status=pending&items_per_page=50&page=${page}`;
+
+            if (selectedPointName) {
+              url += `&point_name=${encodeURIComponent(selectedPointName)}`;
+            }
+
+            loadNext(url);
           }}
-          tableHeight="h-[calc(100vh-174px)]"
+          tableHeight="h-[calc(100vh-184px)]"
           totalRecords={data?.pagination?.total_count || 0}
         />
       </div>

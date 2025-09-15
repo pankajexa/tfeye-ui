@@ -9,6 +9,7 @@ import ChallansRejected from "./pages/challans-rejected";
 import ChallansGenerated from "./pages/challans-generated";
 import BulkImageUpload from "./pages/bulk-upload";
 import ChallanDetails from "./pages/pending-review/challan-details";
+import RejectedChallanDetails from "./pages/challans-rejected/rejected-challan-details";
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: "pending-review/:id", element: <ChallanDetails /> },
       { path: "challans-generated", element: <ChallansGenerated /> },
       { path: "challans-rejected", element: <ChallansRejected /> },
+       { path: "challans-rejected/:id", element: <RejectedChallanDetails /> },
       { path: "bulk-upload", element: <BulkImageUpload /> },
     ],
   },

@@ -54,7 +54,7 @@ const Navbar: React.FC<NavbarProps> = ({ pathname }) => {
       url: "/challans-generated",
       icon: CheckCircle,
       count: 0,
-      isActive: pathname === "/challans-generated",
+      isActive: pathname.startsWith("/challans-generated"),
     },
 
     {
@@ -62,7 +62,7 @@ const Navbar: React.FC<NavbarProps> = ({ pathname }) => {
       url: "/challans-rejected",
       icon: XCircle,
       count: 0,
-      isActive: pathname === "/challans-rejected",
+      isActive: pathname.startsWith("/challans-rejected"),
     },
     {
       title: "Bulk Upload",
@@ -94,7 +94,7 @@ const Navbar: React.FC<NavbarProps> = ({ pathname }) => {
     <div className="left-0 top-0 h-screen w-[250px] shrink-0 bg-gray-900 border-r border-[#16213e] flex flex-col">
       {/* Logo Section */}
       <div className="flex items-center gap-3 px-6 py-6">
-        <div >
+        <div>
           <img src={logo} alt="logo" className="h-[32px]" />
         </div>
       </div>
@@ -177,7 +177,7 @@ const Navbar: React.FC<NavbarProps> = ({ pathname }) => {
             title="Logout"
             onClick={() => setShowConfirm(true)}
           >
-            <LogOut  />
+            <LogOut />
           </Button>
         </div>
       </div>

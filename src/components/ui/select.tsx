@@ -94,7 +94,9 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
     const containerRef = React.useRef<HTMLDivElement>(null);
     const [isOpen, setIsOpen] = React.useState(false);
     const [searchTerm, setSearchTerm] = React.useState("");
-    const [dropdownPosition, setDropdownPosition] = React.useState<'top' | 'bottom'>('bottom');
+    const [dropdownPosition, setDropdownPosition] = React.useState<
+      "top" | "bottom"
+    >("bottom");
     const [selectedValues, setSelectedValues] = React.useState<string[]>(() => {
       const initialValue = value || defaultValue;
       if (multiple) {
@@ -125,26 +127,26 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
 
     // Function to calculate dropdown position based on available space
     const calculateDropdownPosition = React.useCallback(() => {
-      if (!containerRef.current) return 'bottom';
-      
+      if (!containerRef.current) return "bottom";
+
       const rect = containerRef.current.getBoundingClientRect();
       const viewportHeight = window.innerHeight;
       const dropdownHeight = 240; // max-h-60 = 240px
       const spaceBelow = viewportHeight - rect.bottom;
       const spaceAbove = rect.top;
-      
+
       // If there's enough space below, show below
       if (spaceBelow >= dropdownHeight) {
-        return 'bottom';
+        return "bottom";
       }
-      
+
       // If there's more space above than below, show above
       if (spaceAbove > spaceBelow) {
-        return 'top';
+        return "top";
       }
-      
+
       // Default to bottom if space is equal or very limited
-      return 'bottom';
+      return "bottom";
     }, []);
 
     const finalVariant = error
@@ -179,7 +181,12 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
           newValues = Array.from(new Set([...selectedValues, optionValue]));
         }
       } else {
-        newValues = [optionValue];
+        if (selectedValues.includes(optionValue)) {
+          newValues = [];
+        } else {
+          newValues = [optionValue];
+        }
+
         if (closeOnSelectSingle) setIsOpen(false);
       }
 
@@ -307,7 +314,10 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
               ) : multiple ? (
                 <div className="flex flex-wrap gap-1 items-center  overflow-hidden max-h-16">
                   {selectedOptions
-                    ?.slice(0, typeof maxTagCount === "number" ? maxTagCount : 2)
+                    ?.slice(
+                      0,
+                      typeof maxTagCount === "number" ? maxTagCount : 2
+                    )
                     ?.map((option) => (
                       <span
                         key={option?.id}
@@ -323,8 +333,16 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                         </button>
                       </span>
                     ))}
-                  {(typeof maxTagCount === "number" ? maxTagCount : 2) < selectedOptions.length ? (
-                    <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 inset-ring inset-ring-gray-500/10">+{selectedOptions.length - (typeof maxTagCount === "number" ? maxTagCount : 2)} more</span>
+                  {(typeof maxTagCount === "number" ? maxTagCount : 2) <
+                  selectedOptions.length ? (
+                    <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 inset-ring inset-ring-gray-500/10">
+                      +
+                      {selectedOptions.length -
+                        (typeof maxTagCount === "number"
+                          ? maxTagCount
+                          : 2)}{" "}
+                      more
+                    </span>
                   ) : null}
                 </div>
               ) : (
@@ -353,10 +371,12 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
           </div>
 
           {isOpen && (
-            <div 
+            <div
               className={cn(
                 "absolute z-50 w-full bg-white border border-border rounded-md shadow-lg max-h-60 overflow-auto",
-                dropdownPosition === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'
+                dropdownPosition === "top"
+                  ? "bottom-full mb-1"
+                  : "top-full mt-1"
               )}
             >
               {searchable && (
