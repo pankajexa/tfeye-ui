@@ -6,20 +6,19 @@ import { useAnalyses } from "@/hooks/useAnalyses";
 import { Loader } from "../../components";
 import { Link } from "react-router-dom";
 import ReusableTable from "@/components/ui/ReusableTable";
+import { Badge } from "@/components/ui/Badge";
+import { dateFormat } from "@/utils/dateFormat";
 
 const ChallansGenerated: React.FC = () => {
-    const { data, loading, error } = useAnalyses(
-    `api/v1/analyses?status=generated&limit=50&offset=0`
+  const { data, loading, error, refetch } = useAnalyses(
+    `api/v1/analyses?status=generated&items_per_page=50&page=1`
   );
-  const [approvedChallans, setApprovedChallans] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
 
-  useEffect(() => {
-    if (data?.data?.length > 0) {
-      setApprovedChallans(data?.data);
-    }
-  }, [data]);
 
+  const loadNext = (url: string) => {
+    refetch(url);
+  };
 
   const LeftSideHeader = () => {
     return (
@@ -51,7 +50,7 @@ const ChallansGenerated: React.FC = () => {
   if (loading) {
     return <Loader />;
   }
-  if (approvedChallans.length === 0) {
+  if (data?.data?.length === 0) {
     return (
       <div className="p-10 text-center">
         <CheckCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -70,76 +69,89 @@ const ChallansGenerated: React.FC = () => {
     );
   }
 
+  const columns = [
+    {
+      accessorKey: "license_plate_number",
+      header: "Vehicle Number",
+      cell: ({ row }) => (
+        <div className="flex gap-3 items-center text-sm">
+          <p className="font-medium text-gray-900">
+            {row?.original?.license_plate_number || "N/A"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "created_at",
+      header: "Captured time",
+      cell: ({ row }) => (
+        <p className="text-sm text-gray-600 font-normal">
+          {dateFormat(row?.original?.created_at, "datetime")}
+        </p>
+      ),
+    },
+    {
+      accessorKey: "image_captured_by_name",
+      header: "Capture by",
+      cell: ({ row }) => (
+        <p className="text-sm text-gray-600 font-normal">
+          {row?.original?.image_captured_by_name}
+        </p>
+      ),
+    },
+    {
+      accessorKey: "point_name",
+      header: "Point name",
+      cell: ({ row }) => (
+        <p className="text-sm text-gray-600 font-normal">
+          {row?.original?.point_name}
+        </p>
+      ),
+    },
+    {
+      accessorKey: "vio_data",
+      header: "Violation type",
+      cell: ({ row }) => (
+        <div className="space-x-2 flex flex-wrap">
+          {row?.original?.vio_data?.map((vio, index) => (
+            <Badge key={index}>{vio?.detected_violation}</Badge>
+          ))}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="h-full flex flex-col">
       <Header
         LeftSideHeader={<LeftSideHeader />}
         RightSideHeader={<RightSideHeader />}
       />
-
-      <div className=" flex-grow m-6">
-        <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
-              <tr>
-                <th className="px-6 py-3 ">ID</th>
-                <th className="px-6 py-3">Date</th>
-                <th className="px-6 py-3">Name</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3">Violation Types</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {approvedChallans?.map((challan) => (
-                <tr key={challan?.id}>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {challan?.id}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {challan?.created_at
-                      ? new Date(challan?.created_at).toLocaleDateString(
-                          "en-US",
-                          {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
-                        )
-                      : "-"}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {challan?.filename ?? "-"}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className="inline-flex items-center rounded-md uppercase bg-green-50 px-2 py-1 text-xs font-medium text-green-700 inset-ring inset-ring-green-600/20">
-                      {challan?.status ?? "Approved"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    <div className="flex gap-3 flex-wrap ">
-                      {challan?.violation_types?.map((item, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex  items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 inset-ring inset-ring-gray-500/10"
-                        >
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        {/* <ReusableTable
+      <div className="flex flex-col flex-grow m-6">
+        <div className="w-full pb-6">
+          <h2 className="text-lg flex items-center gap-1.5 text-gray-900 font-semibold">
+            Challans Generated {" "}
+            <Badge rounded="full" variant="purple">
+              {data?.pagination?.total_count || 0}
+            </Badge>
+          </h2>
+        </div>
+        <ReusableTable
+          key={currentPage}
           columns={columns}
-          data={sampleData}
+          data={data?.data || []}
           visibleColumns={5}
           currentPage={currentPage}
-          itemsPerPage={10}
-          onPageChange={(page) => setCurrentPage(page)}
-        /> */}
+          itemsPerPage={50}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            loadNext(
+              `api/v1/analyses?status=pending&items_per_page=50&page=${page}`
+            );
+          }}
+          tableHeight="h-[calc(100vh-174px)]"
+          totalRecords={data?.pagination?.total_count || 0}
+        />
       </div>
     </div>
   );

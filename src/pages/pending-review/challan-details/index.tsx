@@ -43,8 +43,8 @@ interface ViolationType {
 const ChallanDetails: React.FC = () => {
   const { currentOfficer } = useAuth();
   const { id } = useParams();
-  const { data, loading, error,refetch } = useAnalyses(
-    `api/v1/analyses?status=pending&limit=50&offset=0`
+  const { data, loading, error, refetch } = useAnalyses(
+    `api/v1/analyses?status=pending&items_per_page=50&page=1`
   );
   const [pendingReviews, setPendingReviews] = useState<Challan[]>([]);
   const [showRejectOptions, setShowRejectOptions] = useState(false);

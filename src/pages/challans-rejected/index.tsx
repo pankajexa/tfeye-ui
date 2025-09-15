@@ -12,23 +12,16 @@ import { dateFormat } from "@/utils/dateFormat";
 
 const rejectedSubTabs = [
   // { id: "all", name: "All" },
-  { id: "system-rejected", name: "System Rejected" },
-  { id: "operator-rejected", name: "Operator Rejected" },
+  { id: "system_rejected", name: "System Rejected" },
+  { id: "officer_rejected", name: "Operator Rejected" },
 ];
 
 const ChallansRejected = () => {
   const { data, loading, error, refetch } = useAnalyses(
-    `api/v1/analyses?status=rejected&limit=50&offset=0`
+    `api/v1/analyses?status=rejected&sub_status=system_rejected&items_per_page=50&page=1`
   );
-  const [rejectedChallans, setRejectedChallans] = useState([]);
-  const [searchStatus, setSearchStatus] = useState("system-rejected");
+  const [searchStatus, setSearchStatus] = useState("system_rejected");
   const [currentPage, setCurrentPage] = useState(1);
-
-  useEffect(() => {
-    if (data?.data?.length > 0) {
-      setRejectedChallans(data?.data);
-    }
-  }, [data]);
 
   const LeftSideHeader = () => {
     return (
@@ -60,7 +53,7 @@ const ChallansRejected = () => {
   if (loading) {
     return <Loader />;
   }
-  if (rejectedChallans.length === 0) {
+  if (data?.data?.length === 0) {
     return (
       <div className="p-8 text-center">
         <CheckCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -80,27 +73,19 @@ const ChallansRejected = () => {
 
   const columns = [
     {
-      accessorKey: "name",
-      header: "Image ID",
+      accessorKey: "license_plate_number",
+      header: "Vehicle Number",
       cell: ({ row }) => (
-        <div className="flex  gap-3 items-center text-sm">
-          {/* <image
-              src={row?.original?.image_url || "/placeholder.png"}
-              alt="vehicle image"
-              className="w-[40px] h-[40px] object-cover rounded-sm border"
-            /> */}
-          <div>
-            <p className="font-medium text-gray-900">
-              {row?.original?.uuid}
-            </p>
-            <p className=" text-gray-600">{row?.original?.point_name}</p>
-          </div>
+        <div className="flex gap-3 items-center text-sm">
+          <p className="font-medium text-gray-900">
+            {row?.original?.license_plate_number || "N/A"}
+          </p>
         </div>
       ),
     },
     {
       accessorKey: "created_at",
-      header: "Captured at",
+      header: "Captured time",
       cell: ({ row }) => (
         <p className="text-sm text-gray-600 font-normal">
           {dateFormat(row?.original?.created_at, "datetime")}
@@ -108,17 +93,25 @@ const ChallansRejected = () => {
       ),
     },
     {
+      accessorKey: "image_captured_by_name",
+      header: "Capture by",
+      cell: ({ row }) => (
+        <p className="text-sm text-gray-600 font-normal">
+          {row?.original?.image_captured_by_name}
+        </p>
+      ),
+    },
+    {
       accessorKey: "point_name",
-      header: "Location",
+      header: "Point name",
       cell: ({ row }) => (
         <p className="text-sm text-gray-600 font-normal">
           {row?.original?.point_name}
         </p>
       ),
     },
-
     {
-      accessorKey: "violation_types",
+      accessorKey: "vio_data",
       header: "Violation type",
       cell: ({ row }) => (
         <div className="space-x-2 flex flex-wrap">
@@ -146,7 +139,7 @@ const ChallansRejected = () => {
             <h2 className="text-lg flex items-center gap-1.5 text-gray-900 font-semibold">
               Challans Rejected{" "}
               <Badge rounded={"full"} variant="purple">
-                {rejectedChallans?.length || 0}
+                {data?.pagination?.total_count || 0}
               </Badge>{" "}
             </h2>
           </div>
@@ -159,25 +152,26 @@ const ChallansRejected = () => {
             onChange={(status) => {
               setSearchStatus(status);
               loadNext(
-                `api/v1/analyses?status=rejected&sub_status=${status}&limit=50&offset=${
-                  currentPage - 1
-                }`
+                `api/v1/analyses?status=rejected&sub_status=${status}&items_per_page=50&page=${currentPage}`
               );
             }}
           />
         </div>
         <ReusableTable
+          key={currentPage}
           columns={columns}
-          data={rejectedChallans}
+          data={data?.data || []}
           visibleColumns={5}
           currentPage={currentPage}
           itemsPerPage={50}
           onPageChange={(page) => {
             setCurrentPage(page);
             loadNext(
-              `api/v1/analyses?status=rejected&limit=50&offset=${page - 1}`
+              `api/v1/analyses?status=rejected&sub_status=${searchStatus}&items_per_page=50&page=${page}`
             );
           }}
+          tableHeight="h-[calc(100vh-220px)]"
+          totalRecords={data?.pagination?.total_count || 0}
         />
       </div>
     </div>

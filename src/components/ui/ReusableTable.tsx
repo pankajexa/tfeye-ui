@@ -16,6 +16,7 @@ export default function ReusableTable({
   onPageChange,
   getRowProps = () => ({}),
   tableHeight = "h-full",
+  totalRecords = 0,
 }) {
   const safeColumns = Array.isArray(columns) ? columns : [];
   const safeData = useMemo(
@@ -34,10 +35,6 @@ export default function ReusableTable({
   });
 
   const rows = table.getRowModel().rows;
-  const paginatedRows = useMemo(() => {
-    const start = Math.max(0, (currentPage - 1) * itemsPerPage);
-    return rows.slice(start, start + itemsPerPage);
-  }, [rows, currentPage, itemsPerPage]);
 
   const limitedColumns = useMemo(
     () => safeColumns.slice(0, visibleColumns),
@@ -46,9 +43,9 @@ export default function ReusableTable({
 
   return (
     <div
-      className={`flex  flex-col border z-[1] ${tableHeight} overflow-auto   border-gray-200 rounded-xl shadow-sm`}
+      className={`flex flex-col justify-between border z-[1] ${tableHeight} overflow-auto border-gray-200 rounded-xl shadow-sm`}
     >
-      {/* Table Header + Scrollable Body */}
+      {/* Table Header */}
       <table className="min-w-full border-collapse bg-white">
         <thead className="bg-gray-50 sticky top-0 z-10">
           {table.getHeaderGroups().length > 0 ? (
@@ -79,8 +76,8 @@ export default function ReusableTable({
         </thead>
 
         <tbody>
-          {paginatedRows.length > 0 ? (
-            paginatedRows.map((row) => {
+          {rows.length > 0 ? (
+            rows.map((row) => {
               const rowProps = getRowProps(row) || {};
               return (
                 <tr
@@ -118,11 +115,11 @@ export default function ReusableTable({
         </tbody>
       </table>
 
-      {/* Sticky Pagination */}
-      {safeData.length > 50 && (
-        <div className="p-3  bg-white rounded-b-lg sticky w-full bottom-0 z-10">
+      {/* Pagination */}
+      {totalRecords > itemsPerPage && (
+        <div className="p-3 bg-white rounded-b-lg sticky w-full bottom-0 z-10">
           <Pagination
-            totalLength={safeData.length}
+            totalLength={totalRecords}
             itemsPerPage={itemsPerPage}
             currentPage={currentPage}
             handlePageClick={(selectedPage) =>
