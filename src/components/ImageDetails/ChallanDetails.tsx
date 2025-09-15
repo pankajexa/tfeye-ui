@@ -12,25 +12,6 @@ import { useToast } from "@/components/toast";
 import { useAuth } from "@/context/AuthContext";
 import { Challan } from "@/types";
 
-const previousChallansResponse = {
-  responseDesc: "Success",
-  data: {
-    regnNo: "TS13UB3768",
-    color: "RED",
-    wheeler: "4",
-    imageURLs: [
-      "https://echallan.tspolice.gov.in/p4/Evidences/23/pending/MR/2023/10/28/2303/2303120004/HYD03ME230019093.jpg",
-      "https://echallan.tspolice.gov.in/p4/Evidences/23/pending/MR/2023/06/10/2328/2328120004/HYD28EC236034157.jpg",
-      "https://echallan.tspolice.gov.in/p4/Evidences/23/pending/MR/2023/05/02/2330/2300120010/HYD00SC234879240.jpg",
-      "https://echallan.tspolice.gov.in/p4/Evidences/23/pending/MR/2023/05/02/2313/2313130008/HYD13TE238062997.jpg",
-    ],
-    maker: "MAHINDRA & MAHINDRA LTD",
-    model: "MAHINDRA JEETO S6-11 BSIV",
-    vehtype: "Goods Carriage",
-  },
-  responseCode: "0",
-};
-
 interface ViolationType {
   id: string;
   name: string;
@@ -39,15 +20,16 @@ interface ViolationType {
   penaltyPoints: string | null;
 }
 
-const ChallanDetails: React.FC = ({ url }) => {
+const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
   const { currentOfficer } = useAuth();
 
-  const { data, loading, error, refetch } = useAnalyses(url);
+  const { data, loading } = useAnalyses(url);
   const [pendingReviews, setPendingReviews] = useState<Challan[]>([]);
   const [showRejectOptions, setShowRejectOptions] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [activeChallana, setActiveChallana] = useState(null);
+  const [activeChallana, setActiveChallana] = useState<Challan | null>(null);
   const [previousChallans, setPreviousChallans] = useState<any>(null);
+  const [previousChallansLoading, setPreviousChallansLoading] = useState(false);
   const [allViolationData, setAllViolationData] = useState<ViolationType[]>([]);
   const [buttonLoader, setButtonLoader] = useState(false);
   const [focusedButton, setFocusedButton] = useState<"reject" | "approve">(
@@ -87,9 +69,9 @@ const ChallanDetails: React.FC = ({ url }) => {
       if (data.success) {
         const uniqueData = Array.from(
           new Map(
-            (data?.data || [])?.map((item) => [item?.offence_cd, item])
+            (data?.data || [])?.map((item: any) => [item?.offence_cd, item])
           ).values()
-        );
+        ) as ViolationType[];
         setAllViolationData(uniqueData);
       }
     } catch (error) {
@@ -98,6 +80,71 @@ const ChallanDetails: React.FC = ({ url }) => {
       return null;
     } finally {
       setButtonLoader(false);
+    }
+  };
+
+  const handleViewPreviousChallans = async () => {
+    // Debug: Log the active challan data to understand structure
+    console.log("🔍 Active Challan Data:", activeChallana);
+    console.log("🔍 Available vehicle number fields:", {
+      plateNumber: activeChallana?.plateNumber,
+      modified_vehicle_details: (activeChallana as any)?.modified_vehicle_details?.registrationNumber,
+      parameter_analysis: (activeChallana as any)?.parameter_analysis?.rta_data_used?.registrationNumber,
+      rtaVerification: activeChallana?.rtaVerification?.registrationNumber,
+      ocrData: activeChallana?.ocrData?.license_plate,
+      qualityAssessment: (activeChallana as any)?.qualityAssessment?.extracted_license_plate
+    });
+
+    // Try to get vehicle number from multiple possible locations
+    const vehicleNumber = 
+      activeChallana?.plateNumber ||
+      (activeChallana as any)?.modified_vehicle_details?.registrationNumber ||
+      (activeChallana as any)?.parameter_analysis?.rta_data_used?.registrationNumber ||
+      activeChallana?.rtaVerification?.registrationNumber ||
+      activeChallana?.ocrData?.license_plate ||
+      (activeChallana as any)?.qualityAssessment?.extracted_license_plate;
+
+    console.log("🚗 Selected vehicle number:", vehicleNumber);
+
+    if (!vehicleNumber) {
+      showErrorToast({
+        heading: "Error",
+        description: "No vehicle number found for current challan. Please ensure the challan has been processed and contains license plate information.",
+        placement: "top-right",
+      });
+      return;
+    }
+
+    setPreviousChallansLoading(true);
+    try {
+      const result = await apiService.getPreviousChallans(vehicleNumber);
+      
+      if (result.success) {
+        setPreviousChallans(result.data);
+        showSuccessToast({
+          heading: "Vehicle Details Retrieved",
+          description: `Found vehicle details for ${vehicleNumber}. ${result.data?.data?.imageURLs?.length || 0} previous challan images available.`,
+          placement: "top-right",
+        });
+      } else {
+        showErrorToast({
+          heading: "No Previous Challans",
+          description: result.error || "No previous challans found for this vehicle.",
+          placement: "top-right",
+        });
+        // Still show modal with empty state for better UX
+        setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch previous challans";
+      showErrorToast({
+        heading: "Error",
+        description: `Failed to fetch previous challans: ${errorMessage}`,
+        placement: "top-right",
+      });
+      console.error("Failed to fetch previous challans:", error);
+    } finally {
+      setPreviousChallansLoading(false);
     }
   };
 
@@ -173,7 +220,7 @@ const ChallanDetails: React.FC = ({ url }) => {
               ...item,
               modified_vehicle_details:
                 data?.data?.modified_vehicle_details ||
-                item?.modified_vehicle_details,
+                (item as any)?.modified_vehicle_details,
             }
           : item
       );
@@ -183,8 +230,8 @@ const ChallanDetails: React.FC = ({ url }) => {
         ...prev,
         modified_vehicle_details:
           data?.data?.modified_vehicle_details ||
-          item?.modified_vehicle_details,
-      }));
+          (prev as any)?.modified_vehicle_details,
+      } as Challan));
     } catch (error: any) {
       showErrorToast({
         heading: "Error",
@@ -346,10 +393,11 @@ const ChallanDetails: React.FC = ({ url }) => {
       <div className="flex items-center space-x-3">
         <Button
           variant={"secondary"}
-          onClick={() => setPreviousChallans(previousChallansResponse)}
+          onClick={handleViewPreviousChallans}
+          disabled={previousChallansLoading}
         >
           <Eye />
-          View Previous Challans
+          {previousChallansLoading ? "Loading..." : "View Previous Challans"}
         </Button>
         <Button
           ref={rejectButtonRef}
@@ -417,19 +465,29 @@ const ChallanDetails: React.FC = ({ url }) => {
                 <h3 className="text-sm font-semibold mb-2">
                   Previous Challan Images
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {previousChallans?.data?.imageURLs?.map(
-                    (url: string, idx: number) => (
-                      <a href={url} target="_blank" key={idx}>
-                        <img
-                          src={url}
-                          alt={`Challan-${idx}`}
-                          className="w-full h-32 object-cover rounded border"
-                        />
-                      </a>
-                    )
-                  )}
-                </div>
+                {previousChallans?.data?.imageURLs?.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {previousChallans?.data?.imageURLs?.map(
+                      (url: string, idx: number) => (
+                        <a href={url} target="_blank" key={idx}>
+                          <img
+                            src={url}
+                            alt={`Challan-${idx}`}
+                            className="w-full h-32 object-cover rounded border"
+                          />
+                        </a>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No previous challan images available for this vehicle.</p>
+                    <p className="text-sm mt-2">
+                      This shows vehicle details from RTA database. 
+                      Previous challan images are not available through this data source.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ) : null

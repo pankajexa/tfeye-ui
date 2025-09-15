@@ -668,6 +668,82 @@ class ApiService {
     return response.json();
   }
 
+  // Get previous challans for a vehicle using backend API
+  async getPreviousChallans(registrationNumber: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      console.log("🔍 Fetching previous challans for:", registrationNumber);
+      
+      const response = await fetch(`${this.baseUrl}/api/vehicle-details`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ registrationNumber }),
+      });
+
+      console.log("📥 Backend API Response:", {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("❌ Backend API Error:", errorData);
+        return {
+          success: false,
+          error: errorData.error || `Failed to fetch previous challans: ${response.status}`
+        };
+      }
+
+      const data = await response.json();
+      console.log("📄 Backend API Response Data:", data);
+      
+      if (data.success && data.data) {
+        console.log("✅ Successfully retrieved vehicle data:", {
+          vehicleNumber: data.data.registrationNumber,
+          make: data.data.make,
+          model: data.data.model,
+          color: data.data.color,
+          rcStatus: data.data.rcStatus
+        });
+        
+        // Transform RTA data format to match UI expectations
+        const transformedData = {
+          responseCode: "0",
+          responseDesc: "Success",
+          data: {
+            regnNo: data.data.registrationNumber,
+            color: data.data.color,
+            wheeler: "4", // Default since RTA doesn't provide this
+            maker: data.data.make,
+            model: data.data.model,
+            vehtype: data.data.model, // Use model as vehicle type
+            imageURLs: [] // RTA data doesn't include previous challan images
+          }
+        };
+        
+        return {
+          success: true,
+          data: transformedData
+        };
+      } else {
+        console.log("⚠️ Backend API returned non-success:", data);
+        return {
+          success: false,
+          error: data.error || "No vehicle data found"
+        };
+      }
+
+    } catch (error) {
+      console.error("💥 Failed to fetch previous challans:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to fetch previous challans"
+      };
+    }
+  }
+
   // Get RTA sample data
   async getRTAData(): Promise<any> {
     const response = await fetch(`${this.baseUrl}/api/rta-data`);
