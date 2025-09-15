@@ -1,152 +1,652 @@
-import React, { useState } from "react";
-import { Upload, CheckCircle } from "lucide-react";
 import { Header } from "@/components";
 import { Button } from "@/components/ui/button";
+import ImageDetails from "@/components/ImageDetails/ImageDetails";
+import { ClipboardList, Eye, CheckCircle, X } from "lucide-react";
 import { useAnalyses } from "@/hooks/useAnalyses";
-import { Loader } from "../../components";
-import { Link } from "react-router-dom";
-import ReusableTable from "@/components/ui/ReusableTable";
-import { Badge } from "@/components/ui/Badge";
-import { dateFormat } from "@/utils/dateFormat";
+import { Loader } from "@/components";
+import { useState, useEffect, useRef } from "react";
+import { Modal } from "@/components/ui/modal";
+import { apiService } from "@/services/api";
+import { globals } from "@/constants/globalConstants";
+import { useToast } from "@/components/toast";
+import { useAuth } from "@/context/AuthContext";
+import { Challan } from "@/types";
+import { useParams } from "react-router-dom";
 
-const PendingForReview = () => {
+const previousChallansResponse = {
+  responseDesc: "Success",
+  data: {
+    regnNo: "TS13UB3768",
+    color: "RED",
+    wheeler: "4",
+    imageURLs: [
+      "https://echallan.tspolice.gov.in/p4/Evidences/23/pending/MR/2023/10/28/2303/2303120004/HYD03ME230019093.jpg",
+      "https://echallan.tspolice.gov.in/p4/Evidences/23/pending/MR/2023/06/10/2328/2328120004/HYD28EC236034157.jpg",
+      "https://echallan.tspolice.gov.in/p4/Evidences/23/pending/MR/2023/05/02/2330/2300120010/HYD00SC234879240.jpg",
+      "https://echallan.tspolice.gov.in/p4/Evidences/23/pending/MR/2023/05/02/2313/2313130008/HYD13TE238062997.jpg",
+    ],
+    maker: "MAHINDRA & MAHINDRA LTD",
+    model: "MAHINDRA JEETO S6-11 BSIV",
+    vehtype: "Goods Carriage",
+  },
+  responseCode: "0",
+};
+
+interface ViolationType {
+  id: string;
+  name: string;
+  section: string | null;
+  penalties: string | null;
+  penaltyPoints: string | null;
+}
+
+const ChallanDetails: React.FC = () => {
+  const { currentOfficer } = useAuth();
+  const { id } = useParams();
   const { data, loading, error, refetch } = useAnalyses(
     `api/v1/analyses?status=pending&items_per_page=50&page=1`
   );
-  const [currentPage, setCurrentPage] = useState(1);
+  const [pendingReviews, setPendingReviews] = useState<Challan[]>([]);
+  const [showRejectOptions, setShowRejectOptions] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [activeChallana, setActiveChallana] = useState(null);
+  const [previousChallans, setPreviousChallans] = useState<any>(null);
+  const [allViolationData, setAllViolationData] = useState<ViolationType[]>([]);
+  const [buttonLoader, setButtonLoader] = useState(false);
+  const [focusedButton, setFocusedButton] = useState<"reject" | "approve">(
+    "approve"
+  );
+  const [showGenerateConfirmation, setShowGenerateConfirmation] =
+    useState(false);
+  const { success: showSuccessToast, error: showErrorToast } = useToast();
+  const [violations, setViolations] = useState<string[]>([]);
+  const rejectButtonRef = useRef<HTMLButtonElement>(null);
+  const approveButtonRef = useRef<HTMLButtonElement>(null);
 
-  const loadNext = (url: string) => {
-    refetch(url);
+  useEffect(() => {
+    if (data?.data?.length > 0) {
+      setPendingReviews(data?.data);
+      const safeIndex = currentIndex ?? 0;
+
+      // check length before accessing
+      if (
+        Array.isArray(data?.data) &&
+        safeIndex >= 0 &&
+        safeIndex < data.data.length
+      ) {
+        setActiveChallana(data.data[safeIndex]);
+        setCurrentIndex(safeIndex);
+      } else {
+        setActiveChallana(data?.data?.[0]);
+        setCurrentIndex(0);
+      }
+    }
+  }, [data]);
+
+  const loadAllViolationsData = async () => {
+    try {
+      setButtonLoader(true);
+      const data = await apiService.getDatabaseViolations();
+      if (data.success) {
+        const uniqueData = Array.from(
+          new Map(
+            (data?.data || [])?.map((item) => [item?.offence_cd, item])
+          ).values()
+        );
+        setAllViolationData(uniqueData);
+      }
+    } catch (error) {
+      setAllViolationData([]);
+      setButtonLoader(false);
+      return null;
+    } finally {
+      setButtonLoader(false);
+    }
   };
 
-  const LeftSideHeader = () => (
-    <div className="flex items-center space-x-3">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Pending for Review</h1>
-        <p className="text-sm text-gray-600 font-normal">
-          Verify and approve detected violations to proceed with challan
-          generation.
-        </p>
-      </div>
-    </div>
-  );
+  useEffect(() => {
+    loadAllViolationsData();
+  }, []);
 
-  const RightSideHeader = () => (
-    <div className="flex items-center space-x-3">
-      <Link to="/bulk-upload">
-        <Button>
-          <Upload /> Upload Photos
-        </Button>
-      </Link>
-    </div>
-  );
+  // Keyboard navigation handler
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle keyboard events when not in a modal or input field
+      if (
+        showRejectOptions ||
+        showGenerateConfirmation ||
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
 
+      switch (event.key) {
+        case "ArrowLeft":
+          event.preventDefault();
+          setFocusedButton("reject");
+          break;
+        case "ArrowRight":
+          event.preventDefault();
+          setFocusedButton("approve");
+          break;
+        case "Enter":
+          event.preventDefault();
+          if (focusedButton === "reject") {
+            setShowRejectOptions(true);
+          } else if (focusedButton === "approve") {
+            setShowGenerateConfirmation(true);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [focusedButton, showRejectOptions, showGenerateConfirmation]);
+
+  const handleUpdateLicensePlate = async (payload: any) => {
+    try {
+      setButtonLoader(true);
+
+      console.log("🚀 Sending license plate update request...");
+      console.log("📋 Payload:", JSON.stringify(payload, null, 2));
+
+      const response = await fetch(
+        `${globals?.BASE_URL}/api/update-license-plate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const responseData = await response.json().catch(() => ({}));
+      console.log("📥 Response status:", response.status);
+      console.log("📥 Response data:", responseData);
+
+      if (!response.ok) {
+        // Handle specific error codes
+        if (responseData.errorCode === "MISSING_REQUIRED_FIELDS") {
+          console.error("❌ Missing required fields:", responseData);
+          showErrorToast({
+            heading: "Missing Information",
+            description: responseData.error || "Required fields are missing. Please try again.",
+            placement: "top-right",
+          });
+          return;
+        }
+
+        if (responseData.errorCode === "INVALID_UUID") {
+          console.error("❌ Invalid UUID:", responseData);
+          showErrorToast({
+            heading: "Invalid Request",
+            description: "The request contains invalid data. Please refresh and try again.",
+            placement: "top-right",
+          });
+          return;
+        }
+
+        if (responseData.errorCode === "INVALID_LICENSE_PLATE") {
+          console.error("❌ Invalid license plate:", responseData);
+          showErrorToast({
+            heading: "Invalid License Plate",
+            description: "The license plate format is invalid. Please check and try again.",
+            placement: "top-right",
+          });
+          return;
+        }
+
+        if (responseData.errorCode === "INVALID_OFFICER_ID") {
+          console.error("❌ Invalid officer ID:", responseData);
+          showErrorToast({
+            heading: "Authentication Issue",
+            description: "Please log out and log in again to update license plates.",
+            placement: "top-right",
+          });
+          return;
+        }
+
+        if (responseData.errorCode === "INVALID_FIELD_VALUES") {
+          console.error("❌ Invalid field values:", responseData);
+          showErrorToast({
+            heading: "Invalid Data",
+            description: responseData.error || "The data provided is invalid. Please check and try again.",
+            placement: "top-right",
+          });
+          return;
+        }
+
+        // Generic error
+        throw new Error(responseData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      if (!responseData.success) {
+        console.error("❌ API returned success: false", responseData);
+        throw new Error(responseData.error || "License plate update failed");
+      }
+
+      console.log("✅ License plate updated successfully:", responseData);
+
+      showSuccessToast({
+        heading: "License Plate Updated",
+        description: `New license plate set to ${payload?.new_license_plate}.`,
+        placement: "top-right",
+      });
+
+      const pendingReviewsData = pendingReviews?.map((item) =>
+        item?.id === activeChallana?.id
+          ? {
+              ...item,
+              modified_vehicle_details:
+                responseData?.data?.modified_vehicle_details ||
+                item?.modified_vehicle_details,
+            }
+          : item
+      );
+
+      setPendingReviews(pendingReviewsData);
+      setActiveChallana((prev) => ({
+        ...prev,
+        modified_vehicle_details:
+          responseData?.data?.modified_vehicle_details ||
+          prev?.modified_vehicle_details,
+      }));
+    } catch (error: any) {
+      console.error("❌ License plate update error:", error);
+      console.error("❌ Error details:", {
+        message: error.message,
+        stack: error.stack,
+        payload: payload,
+      });
+
+      showErrorToast({
+        heading: "Update Failed",
+        description: error.message || "Failed to update license plate",
+        placement: "top-right",
+      });
+    } finally {
+      setButtonLoader(false);
+    }
+  };
+
+  const handleUpdateViolations = async (violationTypes: any) => {
+    try {
+      setButtonLoader(true);
+      if (!violationTypes || violationTypes.length === 0) {
+        showErrorToast({
+          heading: "No Violations Selected",
+          description:
+            "Please select at least one violation type before updating.",
+          placement: "top-right",
+        });
+        return;
+      }
+
+      const response = await fetch(
+        `${globals?.BASE_URL}/api/v1/analyses/${activeChallana?.id}/violations`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ violation_types: violationTypes }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to update violations");
+      }
+
+      showSuccessToast({
+        heading: "Violations Updated",
+        description: `Violations updated successfully for challan ${activeChallana?.id}.`,
+        placement: "top-right",
+      });
+
+      setPendingReviews((prev) =>
+        prev.map((item) =>
+          item?.id === activeChallana?.id
+            ? {
+                ...item,
+                vio_data: violationTypes || [],
+              }
+            : item
+        )
+      );
+    } catch (error: any) {
+      showErrorToast({
+        heading: "Error",
+        description: error.message || "Something went wrong.",
+        placement: "top-right",
+      });
+    } finally {
+      setButtonLoader(false);
+    }
+  };
+
+  const handleUpdateChallan = async (challanId: any, value: any, type: any) => {
+    try {
+      // Build payload dynamically
+
+      if (type === "NUMBER_UPDATE") {
+        // Validate required data before making API call
+        if (!currentOfficer?.id) {
+          console.error("❌ Officer ID not available:", currentOfficer);
+          showErrorToast({
+            heading: "Authentication Required",
+            description: "Please log in again to update license plates.",
+          });
+          return;
+        }
+
+        if (!challanId || !value) {
+          console.error("❌ Missing required data:", { challanId, value });
+          showErrorToast({
+            heading: "Invalid Data",
+            description: "Missing required information for license plate update.",
+          });
+          return;
+        }
+
+        const payload = {
+          uuid: challanId,
+          new_license_plate: value,
+          officer_id: currentOfficer.id, // Remove optional chaining since we validated it
+        };
+
+        // Debug logging
+        console.log("🔍 License Plate Update Payload:", {
+          uuid: payload.uuid,
+          new_license_plate: payload.new_license_plate,
+          officer_id: payload.officer_id,
+          currentOfficer: currentOfficer,
+        });
+
+        handleUpdateLicensePlate(payload);
+      }
+      if (type === "VIOLATIONS_UPDATE") {
+        handleUpdateViolations(value);
+      }
+    } catch (error) {
+      console.error("❌ Error in handleUpdateChallan:", error);
+      showErrorToast({
+        heading: "Update Failed",
+        description: "An unexpected error occurred while updating.",
+      });
+      return null;
+    }
+  };
+
+  const handleApprovedChallana = async () => {
+    try {
+      setButtonLoader(true);
+
+      if (violations.length === 0) {
+        showErrorToast({
+          heading: "No Violations",
+          description: "At least one violation type must be selected.",
+          placement: "top-right",
+        });
+        return;
+      }
+
+      const response = await fetch(
+        `${globals?.BASE_URL}/api/v1/analyses/${activeChallana?.id}/review?status=approved`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Something went wrong");
+      }
+
+      showSuccessToast({
+        heading: "Approved Successfully",
+        description: `Challan ${activeChallana?.plateNumber} approved.`,
+        placement: "top-right",
+      });
+
+      // Auto-move to next challan after approval
+      if (currentIndex < pendingReviews.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+        setActiveChallana(pendingReviews[currentIndex + 1]);
+      }
+      const newPendingReviews = pendingReviews?.filter(
+        (item) => item.id !== activeChallana?.id
+      );
+      setPendingReviews(newPendingReviews);
+      setShowGenerateConfirmation(false);
+    } catch (error: any) {
+      showErrorToast({
+        heading: "Error",
+        description: error.message || "Failed to approve challan.",
+        placement: "top-right",
+      });
+    } finally {
+      setButtonLoader(false);
+    }
+  };
+
+  // Show loading state
   if (loading) {
     return <Loader />;
   }
 
-  if (data?.data?.length === 0) {
+  const LeftSideHeader = () => {
     return (
-      <div className="p-8 text-center">
-        <CheckCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
-          No Pending Reviews
-        </h3>
-        <p className="text-gray-500 mb-4">
-          There are currently no challans pending for review.
-        </p>
+      <div className="flex items-center space-x-3">
+        <div>
+          <h1 className="text-2xl font-bold text-primary">Challan Details</h1>
+          <p className="text-sm text-muted font-normal">
+            Verify and approve detected violations to proceed with challan
+            generation.
+          </p>
+        </div>
       </div>
     );
-  }
-
-  const columns = [
-    {
-      accessorKey: "license_plate_number",
-      header: "Vehicle Number",
-      cell: ({ row }) => (
-        <div className="flex gap-3 items-center text-sm">
-          <Link to={`/pending-review/${row?.original?.id}`}>
-            <p className="font-medium text-gray-900 hover:text-purple-500">
-              {row?.original?.license_plate_number || "N/A"}
-            </p>
-          </Link>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "created_at",
-      header: "Captured time",
-      cell: ({ row }) => (
-        <p className="text-sm text-gray-600 font-normal">
-          {dateFormat(row?.original?.created_at, "datetime")}
-        </p>
-      ),
-    },
-    {
-      accessorKey: "image_captured_by_name",
-      header: "Capture by",
-      cell: ({ row }) => (
-        <p className="text-sm text-gray-600 font-normal">
-          {row?.original?.image_captured_by_name}
-        </p>
-      ),
-    },
-    {
-      accessorKey: "point_name",
-      header: "Point name",
-      cell: ({ row }) => (
-        <p className="text-sm text-gray-600 font-normal">
-          {row?.original?.point_name}
-        </p>
-      ),
-    },
-    {
-      accessorKey: "vio_data",
-      header: "Violation type",
-      cell: ({ row }) => (
-        <div className="space-x-2 flex flex-wrap">
-          {row?.original?.vio_data?.map((vio, index) => (
-            <Badge key={index}>{vio?.detected_violation}</Badge>
-          ))}
-        </div>
-      ),
-    },
-  ];
+  };
+  const RightSideHeader = () => {
+    return (
+      <div className="flex items-center space-x-3">
+        <Button
+          variant={"secondary"}
+          onClick={() => setPreviousChallans(previousChallansResponse)}
+        >
+          <Eye />
+          View Previous Challans
+        </Button>
+        <Button
+          ref={rejectButtonRef}
+          disabled={buttonLoader}
+          variant={"outline"}
+          onClick={() => setShowRejectOptions(true)}
+        >
+          <X />
+          Reject
+        </Button>
+        <Button
+          ref={approveButtonRef}
+          disabled={buttonLoader}
+          onClick={() => setShowGenerateConfirmation(true)}
+        >
+          <CheckCircle />
+          Generate e-Challan
+        </Button>
+      </div>
+    );
+  };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col">
       <Header
         LeftSideHeader={<LeftSideHeader />}
         RightSideHeader={<RightSideHeader />}
       />
-      <div className="flex flex-col flex-grow m-6">
-        <div className="w-full pb-6">
-          <h2 className="text-lg flex items-center gap-1.5 text-gray-900 font-semibold">
-            Challans{" "}
-            <Badge rounded="full" variant="purple">
-              {data?.pagination?.total_count || 0}
-            </Badge>
-          </h2>
-        </div>
-        <ReusableTable
-          key={currentPage}
-          columns={columns}
-          data={data?.data || []}
-          visibleColumns={5}
-          currentPage={currentPage}
-          itemsPerPage={50}
-          onPageChange={(page) => {
-            setCurrentPage(page);
-            loadNext(
-              `api/v1/analyses?status=pending&items_per_page=50&page=${page}`
-            );
-          }}
-          tableHeight="h-[calc(100vh-174px)]"
-          totalRecords={data?.pagination?.total_count || 0}
-        />
+      <Modal
+        open={previousChallans !== null}
+        onOpenChange={(o) => {
+          if (!o) setPreviousChallans(null);
+        }}
+        title="Previous Challan Details"
+        size="lg"
+        description=""
+        children={
+          previousChallans ? (
+            <div className="space-y-4">
+              {/* Vehicle Info */}
+              <div className="space-y-2 grid lg:grid-cols-2 text-sm text-primary">
+                <p>
+                  <strong>Regn No:</strong> {previousChallans?.data?.regnNo}
+                </p>
+                <p>
+                  <strong>Color:</strong> {previousChallans?.data?.color}
+                </p>
+                <p>
+                  <strong>Wheeler:</strong> {previousChallans?.data?.wheeler}
+                </p>
+                <p>
+                  <strong>Maker:</strong> {previousChallans?.data?.maker}
+                </p>
+                <p>
+                  <strong>Model:</strong> {previousChallans?.data?.model}
+                </p>
+                <p>
+                  <strong>Vehicle Type:</strong>{" "}
+                  {previousChallans?.data?.vehtype}
+                </p>
+              </div>
+
+              {/* Images */}
+              <div>
+                <h3 className="text-sm font-semibold mb-2">
+                  Previous Challan Images
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {previousChallans?.data?.imageURLs?.map(
+                    (url: string, idx: number) => (
+                      <a href={url} target="_blank" key={idx}>
+                        <img
+                          src={url}
+                          alt={`Challan-${idx}`}
+                          className="w-full h-32 object-cover rounded border"
+                        />
+                      </a>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null
+        }
+        footer={
+          <div className="flex justify-end gap-4">
+            <Button variant="outline" onClick={() => setPreviousChallans(null)}>
+              Close
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Generate Confirmation Modal */}
+      <Modal
+        open={showGenerateConfirmation}
+        onOpenChange={(o) => {
+          if (!o) setShowGenerateConfirmation(false);
+        }}
+        title="Confirm e-Challan Generation"
+        size="md"
+        description="Are you sure you want to generate an e-challan for this violation?"
+        children={
+          <div className="space-y-4">
+            {/* <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    Final Confirmation Required
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    <p>This action will generate an official e-challan for:</p>
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>Vehicle: {activeChallana?.plateNumber || 'N/A'}</li>
+                      <li>Violations: {activeChallana?.violations?.length || 0} detected</li>
+                    </ul>
+                    <p className="mt-2 font-medium">This action cannot be undone.</p>
+                  </div>
+                </div>
+              </div>
+            </div> */}
+          </div>
+        }
+        footer={
+          <div className="flex justify-end gap-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowGenerateConfirmation(false)}
+            >
+              Cancel
+            </Button>
+            <Button disabled={buttonLoader} onClick={handleApprovedChallana}>
+              {buttonLoader ? "Generating..." : "Confirm & Generate"}
+            </Button>
+          </div>
+        }
+      />
+
+      <div className="flex-grow px-6 pt-2">
+        {pendingReviews?.length === 0 ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium text-primary">
+                Pending Review
+              </h2>
+              <span className="text-sm text-muted">0 items</span>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="p-8 text-center">
+                <ClipboardList className="mx-auto h-12 w-12 text-muted mb-4" />
+                <h3 className="text-lg font-medium text-primary mb-2">
+                  No Items Pending Review
+                </h3>
+                <p className="text-muted mb-4">
+                  Images with detected violations will appear here for manual
+                  review and approval.
+                </p>
+                <p className="text-sm text-muted">
+                  Upload traffic images in the Image Intake tab to start the
+                  analysis process.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <ImageDetails
+            pendingChallans={pendingReviews || []}
+            showRejectOptions={showRejectOptions}
+            setShowRejectOptions={setShowRejectOptions}
+            setCurrentIndex={setCurrentIndex}
+            currentIndex={currentIndex}
+            setActiveChallana={setActiveChallana}
+            activeChallana={activeChallana}
+            allViolationData={allViolationData}
+            handleUpdateChallan={handleUpdateChallan}
+            setAllViolationData={setAllViolationData}
+            setPendingReviews={setPendingReviews}
+            setViolations={setViolations}
+            violations={violations}
+          />
+        )}
       </div>
     </div>
   );
 };
 
-export default PendingForReview;
+export default ChallanDetails;
