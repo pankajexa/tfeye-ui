@@ -1164,6 +1164,33 @@ class ApiService {
     }
   }
 
+  // Duplicate Analysis API
+  async duplicateAnalysis(originalAnalysisUuid: string, manualLicensePlate: string, modificationReason?: string) {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/challan/duplicate-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          originalAnalysisUuid,
+          manualLicensePlate,
+          modificationReason
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Duplicate analysis failed: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('❌ Duplicate analysis error:', error);
+      throw error;
+    }
+  }
+
   // NEW: Upload image directly to backend with officer and point details
   async uploadImageToBackend(
     imageFile: File,
@@ -1193,6 +1220,68 @@ class ApiService {
       success: true,
       data: result,
     };
+  }
+
+  /**
+   * Creates a duplicate analysis with a manually corrected license plate
+   * @param originalAnalysisUuid - UUID of the original analysis to duplicate
+   * @param manualLicensePlate - The corrected license plate number
+   * @param modificationReason - Optional reason for creating the duplicate
+   */
+  async duplicateAnalysis(
+    originalAnalysisUuid: string,
+    manualLicensePlate: string,
+    modificationReason?: string
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      console.log("🔄 Creating duplicate analysis:", {
+        originalAnalysisUuid,
+        manualLicensePlate,
+        modificationReason
+      });
+
+      const response = await fetch(`${this.baseUrl}/api/challan/duplicate-analysis`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          originalAnalysisUuid,
+          manualLicensePlate: manualLicensePlate.toUpperCase(),
+          ...(modificationReason && { modificationReason })
+        })
+      });
+
+      console.log("📥 Duplicate Analysis Response:", {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("❌ Duplicate Analysis Error:", errorData);
+        return {
+          success: false,
+          error: errorData.error || `Failed to create duplicate analysis: ${response.status}`
+        };
+      }
+
+      const data = await response.json();
+      console.log("✅ Duplicate Analysis Created:", data);
+      
+      return {
+        success: true,
+        data: data.data
+      };
+
+    } catch (error) {
+      console.error("💥 Failed to create duplicate analysis:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to create duplicate analysis"
+      };
+    }
   }
 }
 

@@ -32,11 +32,11 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
   const [previousChallansLoading, setPreviousChallansLoading] = useState(false);
   const [allViolationData, setAllViolationData] = useState<ViolationType[]>([]);
   const [buttonLoader, setButtonLoader] = useState(false);
-  const [focusedButton, setFocusedButton] = useState<"reject" | "approve">(
-    "approve"
-  );
-  const [showGenerateConfirmation, setShowGenerateConfirmation] =
-    useState(false);
+  const [focusedButton, setFocusedButton] = useState<"reject" | "approve">("approve");
+  const [showGenerateConfirmation, setShowGenerateConfirmation] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateLicensePlate, setDuplicateLicensePlate] = useState("");
+  const [duplicateReason, setDuplicateReason] = useState("");
   const { success: showSuccessToast, error: showErrorToast } = useToast();
   const [violations, setViolations] = useState<string[]>([]);
   const rejectButtonRef = useRef<HTMLButtonElement>(null);
@@ -375,6 +375,36 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
     return <Loader />;
   }
 
+  const handleDuplicateAnalysis = async () => {
+    try {
+      setButtonLoader(true);
+      const response = await apiService.duplicateAnalysis(
+        activeChallana?.id || "",
+        duplicateLicensePlate,
+        duplicateReason
+      );
+
+      if (response.success) {
+        showSuccessToast({
+          heading: "Success",
+          description: "Duplicate analysis created successfully",
+          placement: "top-right",
+        });
+        setShowDuplicateModal(false);
+        setDuplicateLicensePlate("");
+        setDuplicateReason("");
+      }
+    } catch (error: any) {
+      showErrorToast({
+        heading: "Error",
+        description: error.message || "Failed to create duplicate analysis",
+        placement: "top-right",
+      });
+    } finally {
+      setButtonLoader(false);
+    }
+  };
+
   const LeftSideHeader = () => {
     return (
       <div className="flex items-center space-x-3">
@@ -388,6 +418,7 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
       </div>
     );
   };
+
   const RightSideHeader = () => {
     return (
       <div className="flex items-center space-x-3">
@@ -398,6 +429,17 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
         >
           <Eye />
           {previousChallansLoading ? "Loading..." : "View Previous Challans"}
+        </Button>
+        <Button
+          variant={"secondary"}
+          onClick={() => setShowDuplicateModal(true)}
+          disabled={buttonLoader}
+        >
+          <ClipboardList />
+          <span className="flex items-center gap-1">
+            Add Another Vehicle
+            <span className="text-xs bg-purple-100 text-purple-800 rounded-full px-1.5 py-0.5">Beta</span>
+          </span>
         </Button>
         <Button
           ref={rejectButtonRef}
@@ -496,6 +538,66 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
           <div className="flex justify-end gap-4">
             <Button variant="outline" onClick={() => setPreviousChallans(null)}>
               Close
+            </Button>
+          </div>
+        }
+      />
+
+
+      {/* Duplicate Analysis Modal */}
+      <Modal
+        open={showDuplicateModal}
+        onOpenChange={(o) => {
+          if (!o) {
+            setShowDuplicateModal(false);
+            setDuplicateLicensePlate("");
+            setDuplicateReason("");
+          }
+        }}
+        title="Add Another Vehicle"
+        size="md"
+        description="Create a duplicate analysis for another vehicle in this image"
+        children={
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">License Plate Number</label>
+              <input
+                type="text"
+                value={duplicateLicensePlate}
+                onChange={(e) => setDuplicateLicensePlate(e.target.value.toUpperCase())}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Enter license plate number"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Reason (Optional)</label>
+              <textarea
+                value={duplicateReason}
+                onChange={(e) => setDuplicateReason(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Enter reason for creating duplicate"
+                rows={3}
+              />
+            </div>
+          </div>
+        }
+        footer={
+          <div className="flex justify-end gap-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDuplicateModal(false);
+                setDuplicateLicensePlate("");
+                setDuplicateReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!duplicateLicensePlate.trim() || buttonLoader}
+              onClick={handleDuplicateAnalysis}
+            >
+              {buttonLoader ? "Creating..." : "Create Duplicate"}
             </Button>
           </div>
         }
