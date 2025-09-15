@@ -1191,37 +1191,6 @@ class ApiService {
     }
   }
 
-  // NEW: Upload image directly to backend with officer and point details
-  async uploadImageToBackend(
-    imageFile: File,
-    pointName: string,
-    officerName: string
-  ): Promise<{ success: boolean; data?: any; error?: string }> {
-    const formData = new FormData();
-    formData.append("image", imageFile);
-    formData.append("point_name", pointName);
-    formData.append("officer_name", officerName);
-
-    const response = await fetch(`${BACKEND_URL}/api/ui/upload-image`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        error: errorData.error || `Upload failed: ${response.status}`,
-      };
-    }
-
-    const result = await response.json();
-    return {
-      success: true,
-      data: result,
-    };
-  }
-
   /**
    * Creates a duplicate analysis with a manually corrected license plate
    * @param originalAnalysisUuid - UUID of the original analysis to duplicate

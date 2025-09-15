@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, CheckCircle } from "lucide-react";
+import { Upload, CheckCircle, Copy } from "lucide-react";
 import { Header } from "@/components";
 import { Button } from "@/components/ui/button";
 import { useAnalyses } from "@/hooks/useAnalyses";
@@ -10,6 +10,10 @@ import { Badge } from "@/components/ui/Badge";
 import { dateFormat } from "@/utils/dateFormat";
 import { usePointNames } from "@/hooks/usePointNames";
 import { Select } from "@/components/ui/select";
+import { Modal } from "@/components/ui/modal";
+import { Input } from "@/components/ui/input";
+import { apiService } from "@/services/api";
+import { useToast } from "@/components/toast";
 
 const PendingForReview = () => {
   const { data, loading, error, refetch } = useAnalyses(
@@ -18,6 +22,56 @@ const PendingForReview = () => {
   const { pointDetails, loading: pLoading, error: pError } = usePointNames();
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPointName, setSelectedPointName] = useState(null);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<{ id: string; licensePlate: string } | null>(null);
+  const [manualLicensePlate, setManualLicensePlate] = useState("");
+  const [modificationReason, setModificationReason] = useState("");
+  const [duplicateLoading, setDuplicateLoading] = useState(false);
+  const { showSuccessToast, showErrorToast } = useToast();
+
+  const handleDuplicateAnalysis = async () => {
+    if (!selectedAnalysis || !manualLicensePlate.trim()) {
+      showErrorToast({
+        heading: "Error",
+        description: "Please enter a valid license plate number",
+        placement: "top-right",
+      });
+      return;
+    }
+
+    setDuplicateLoading(true);
+    try {
+      const result = await apiService.duplicateAnalysis(
+        selectedAnalysis.id,
+        manualLicensePlate,
+        modificationReason || "License plate correction by officer"
+      );
+
+      if (result.success) {
+        showSuccessToast({
+          heading: "Success",
+          description: "Duplicate analysis created successfully",
+          placement: "top-right",
+        });
+        setShowDuplicateModal(false);
+        refetch(`api/v1/analyses?status=pending&items_per_page=50&page=${currentPage}`);
+      } else {
+        showErrorToast({
+          heading: "Error",
+          description: result.error || "Failed to create duplicate analysis",
+          placement: "top-right",
+        });
+      }
+    } catch (error) {
+      showErrorToast({
+        heading: "Error",
+        description: error instanceof Error ? error.message : "Failed to create duplicate analysis",
+        placement: "top-right",
+      });
+    } finally {
+      setDuplicateLoading(false);
+    }
+  };
 
   const loadNext = (url: string) => {
     refetch(url);
@@ -74,6 +128,22 @@ const PendingForReview = () => {
               {row?.original?.license_plate_number || "N/A"}
             </p>
           </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.preventDefault();
+              setSelectedAnalysis({
+                id: row?.original?.id,
+                licensePlate: row?.original?.license_plate_number || ""
+              });
+              setManualLicensePlate(row?.original?.license_plate_number || "");
+              setShowDuplicateModal(true);
+            }}
+            title="Create duplicate with corrected license plate"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
         </div>
       ),
     },
