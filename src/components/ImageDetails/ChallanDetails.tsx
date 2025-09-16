@@ -168,13 +168,18 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       if (result.success) {
         setPreviousChallans(result.data);
       } else {
-        showErrorToast({
-          heading: "No Previous Challans",
-          description: result.error || "No previous challans found for this vehicle.",
-          placement: "top-right",
-        });
-        // Still show modal with empty state for better UX
-        setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
+        // Handle authentication errors silently, show modal with empty state
+        if (result.error === "Authentication required") {
+          setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
+        } else {
+          showErrorToast({
+            heading: "No Previous Challans",
+            description: "No previous challans found for this vehicle.",
+            placement: "top-right",
+          });
+          // Still show modal with empty state for better UX
+          setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
+        }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to fetch previous challans";
@@ -490,7 +495,7 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             "Authorization": `Bearer ${operatorToken}`
           },
           body: JSON.stringify({
-            challanUuid: activeChallana?.uuid,
+            challanUuid: (activeChallana as any)?.uuid,
             challanRecordId: prepareData?.data?.id
           })
         }).then(async (response) => {

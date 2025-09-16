@@ -693,6 +693,15 @@ class ApiService {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error("❌ Backend API Error:", errorData);
+        
+        // Handle authentication errors silently
+        if (response.status === 401) {
+          return {
+            success: false,
+            error: "Authentication required"
+          };
+        }
+        
         return {
           success: false,
           error: errorData.error || `Failed to fetch previous challans: ${response.status}`
