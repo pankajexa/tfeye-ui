@@ -17,6 +17,7 @@ import { useToast } from "@/components/toast";
 import { ViolationSelect } from "../ui/violation-select";
 import { RiResetLeftLine } from "react-icons/ri";
 import { Menu, MenuButton, MenuItems } from "@headlessui/react";
+import { Badge } from "../ui/Badge";
 
 interface ChallanCardProps {
   challan: Challan;
@@ -24,6 +25,18 @@ interface ChallanCardProps {
   allViolationData?: any;
   setAllViolationData?: any;
 }
+
+const violationVariants = [
+  // "red",
+  // "yellow",
+  // "green",
+  "blue",
+  "orange",
+  "indigo",
+  "pink",
+  "purple",
+  "teal",
+];
 
 const ChallanCard = ({
   challan,
@@ -75,11 +88,12 @@ const ChallanCard = ({
   };
 
   // Simple URL cache - static across all component instances
-  const urlCache = window.challanUrlCache || (window.challanUrlCache = new Map());
+  const urlCache =
+    window.challanUrlCache || (window.challanUrlCache = new Map());
 
   const fetchImageUrl = async () => {
     if (!challanUuid) return;
-    
+
     // If we already have the image for this UUID, do not re-show loader or refetch
     if (lastFetchedUuidRef.current === challanUuid && imageUrl) {
       return;
@@ -169,7 +183,6 @@ const ChallanCard = ({
     //   return;
     // }
 
-
     onAction(registrationNumber, "NUMBER_UPDATE");
   };
 
@@ -228,7 +241,6 @@ const ChallanCard = ({
     { key: "vehicle_type", label: "Vehicle Type" },
   ];
 
- 
   return (
     <div className="w-full">
       <div className="space-y-4">
@@ -553,16 +565,19 @@ const ChallanCard = ({
                     {violations?.length ? `(${violations.length})` : ""}
                   </h4>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {violations && violations.length > 0 ? (
                       violations.map((violation, index) => (
                         <div
                           key={`${index}`}
                           className="flex w-full border-b border-gray-200 items-center justify-between py-2"
                         >
-                          <p className="text-sm font-medium text-gray-700 truncate pr-4">
+                          <Badge
+                            variant={violationVariants[index < 7 ? index : 1]}
+                            size="md"
+                          >
                             {violation?.violation_description}
-                          </p>
+                          </Badge>
                           <Button
                             onClick={() => handleRemoveType(violation, index)}
                             variant="secondary"
