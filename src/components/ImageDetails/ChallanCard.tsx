@@ -552,9 +552,6 @@ const ChallanCard = ({
                         )
                       : "-"}
                   </span>
-
-                  {/* {challan.offenceDateTime?.time ||
-                    new Date(challan.timestamp).toLocaleTimeString()} */}
                 </div>
               </div>
               {/* Simplified Violation Analysis - Moved to Bottom */}
