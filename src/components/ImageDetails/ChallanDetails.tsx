@@ -342,53 +342,26 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
       console.log('👤 Current Officer Info:', currentOfficer);
       console.log('🔐 Authentication Status:', isAuthenticated);
 
-      // Get officer info (use currentOfficer or fallback to localStorage)
+      // Get officer info (use currentOfficer or create with defaults)
       let officerInfo = currentOfficer;
 
-      if (!officerInfo || !officerInfo.name) {
-        console.log('🔄 Officer info not available in context, checking localStorage...');
-
-        // Try to get officer info from localStorage as fallback
-        const authData = localStorage.getItem('traffic_challan_auth');
-        if (authData) {
-          try {
-            const parsed = JSON.parse(authData);
-            if (parsed.currentOfficer) {
-              console.log('✅ Found officer info in localStorage:', parsed.currentOfficer);
-              officerInfo = parsed.currentOfficer;
-            } else {
-              console.log('⚠️ No officer info in localStorage, creating mock officer for testing...');
-              // Create mock officer for testing purposes
-              officerInfo = {
-                id: 'TEST_OFFICER_001',
-                name: 'Test Officer',
-                cadre: 'Police Constable',
-                operatorCd: '23001007'
-              };
-              console.log('✅ Created mock officer:', officerInfo);
-            }
-          } catch (error) {
-            console.log('⚠️ Error parsing localStorage, creating mock officer for testing...');
-            // Create mock officer for testing purposes
-            officerInfo = {
-              id: 'TEST_OFFICER_001',
-              name: 'Test Officer',
-              cadre: 'Police Constable',
-              operatorCd: '23001007'
-            };
-            console.log('✅ Created mock officer:', officerInfo);
-          }
-        } else {
-          console.log('⚠️ No auth data in localStorage, creating mock officer for testing...');
-          // Create mock officer for testing purposes
-          officerInfo = {
-            id: 'TEST_OFFICER_001',
-            name: 'Test Officer',
-            cadre: 'Police Constable',
-            operatorCd: '23001007'
-          };
-          console.log('✅ Created mock officer:', officerInfo);
-        }
+      if (!officerInfo) {
+        console.log('🔄 No officer info available, creating mock officer for testing...');
+        officerInfo = {
+          id: 'TEST_OFFICER_001',
+          name: 'Test Officer',
+          cadre: 'Police Constable',
+          operatorCd: '23001007'
+        };
+      } else {
+        // Ensure required fields exist, add defaults if missing
+        officerInfo = {
+          id: officerInfo.id || officerInfo.operatorCd || 'TEST_OFFICER_001',
+          name: officerInfo.name || 'Test Officer',
+          cadre: officerInfo.cadre || 'Police Constable',
+          operatorCd: officerInfo.operatorCd || officerInfo.id || '23001007'
+        };
+        console.log('✅ Enhanced officer info with defaults:', officerInfo);
       }
 
       console.log('🚔 Starting challan generation process...');
@@ -398,22 +371,28 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
       console.log('📡 API URL:', `${backendUrl}/api/challan/prepare`);
       console.log('🌐 Backend URL from globals:', globals?.BASE_URL);
 
-      console.log('🔍 Final officerInfo being sent:', officerInfo);
+      console.log('🔍 Raw officerInfo from source:', officerInfo);
       console.log('🔍 Officer info details:', {
         hasOfficerInfo: !!officerInfo,
         officerId: officerInfo?.id,
         officerName: officerInfo?.name,
-        operatorCd: officerInfo?.operatorCd
+        operatorCd: officerInfo?.operatorCd,
+        allKeys: officerInfo ? Object.keys(officerInfo) : []
       });
+
+      // Ensure we have valid officer info
+      const finalOfficerInfo = {
+        id: officerInfo?.id || officerInfo?.operatorCd || officerInfo?.operatorCD || 'DEFAULT_OFFICER_ID',
+        name: officerInfo?.name || 'Unknown Officer',
+        cadre: officerInfo?.cadre || 'Unknown',
+        operatorCd: officerInfo?.operatorCd || officerInfo?.operatorCD || officerInfo?.id || '23001007'
+      };
+
+      console.log('🔍 Final officer info to send:', finalOfficerInfo);
 
       const preparePayload = {
         analysisUuid: activeChallana?.uuid,
-        officerInfo: {
-          id: officerInfo?.id || officerInfo?.operatorCd,
-          name: officerInfo?.name,
-          cadre: officerInfo?.cadre,
-          operatorCd: officerInfo?.operatorCd || officerInfo?.id
-        },
+        officerInfo: finalOfficerInfo,
         selectedViolations: violations?.map(v => ({
           id: v.id || v.violation_cd,
           violation_description: v.violation_description || v.description,
