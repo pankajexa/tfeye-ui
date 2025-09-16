@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { CheckCircle, Download, Car, Eye, X, Upload } from "lucide-react";
+import { CheckCircle, Download, Car, Eye, X, Upload, Clock, AlertCircle, Loader2 } from "lucide-react";
 import { Header } from "@/components";
 import { Button } from "@/components/ui/button";
-import { useAnalyses } from "@/hooks/useAnalyses";
 import { Loader } from "../../components";
 import { Link } from "react-router-dom";
 import ReusableTable from "@/components/ui/ReusableTable";
@@ -10,15 +9,38 @@ import { Badge } from "@/components/ui/Badge";
 import { dateFormat } from "@/utils/dateFormat";
 
 const ChallansGenerated: React.FC = () => {
-  const { data, loading, error, refetch } = useAnalyses(
-    `api/v1/analyses?status=generated&items_per_page=50&page=1`
-  );
+  const [challanData, setChallanData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Fetch challan generation records
+  const fetchChallanRecords = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  const loadNext = (url: string) => {
-    refetch(url);
+      const response = await fetch(
+        `${process.env.VITE_BACKEND_API_URL || 'http://localhost:3001'}/api/challan/records?limit=50&offset=0`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch challan records');
+      }
+
+      const data = await response.json();
+      setChallanData(data);
+    } catch (err: any) {
+      setError(err.message);
+      console.error('Error fetching challan records:', err);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchChallanRecords();
+  }, []);
 
   const LeftSideHeader = () => {
     return (
@@ -28,15 +50,19 @@ const ChallansGenerated: React.FC = () => {
             Challans Generated
           </h1>
           <p className="text-sm text-gray-600 font-normal">
-            Challans flagged as invalid or inaccurate
+            View challan generation status and results
           </p>
         </div>
       </div>
     );
   };
+
   const RightSideHeader = () => {
     return (
       <div className="flex items-center space-x-3">
+        <Button onClick={fetchChallanRecords} variant="outline">
+          <Eye /> Refresh
+        </Button>
         <Link to="/bulk-upload">
           <Button>
             <Upload /> Upload Photos
@@ -46,44 +72,97 @@ const ChallansGenerated: React.FC = () => {
     );
   };
 
+  // Helper function to get status badge
+  const getStatusBadge = (status: string, challanNumber?: string, error?: string) => {
+    switch (status) {
+      case 'generated':
+        return (
+          <Badge className="bg-green-100 text-green-800">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Generated {challanNumber ? `(${challanNumber})` : ''}
+          </Badge>
+        );
+      case 'failed':
+        return (
+          <Badge className="bg-red-100 text-red-800">
+            <X className="w-3 h-3 mr-1" />
+            Failed
+          </Badge>
+        );
+      case 'generating':
+        return (
+          <Badge className="bg-blue-100 text-blue-800">
+            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+            Generating
+          </Badge>
+        );
+      case 'pending':
+      case 'ready_for_generation':
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800">
+            <Clock className="w-3 h-3 mr-1" />
+            Pending
+          </Badge>
+        );
+      default:
+        return (
+          <Badge className="bg-gray-100 text-gray-800">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            {status}
+          </Badge>
+        );
+    }
+  };
+
   // Show loading state
   if (loading) {
     return <Loader />;
   }
-  if (data?.data?.length === 0) {
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="p-8 text-center">
+        <AlertCircle className="mx-auto h-12 w-12 text-red-400 mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Challans</h3>
+        <p className="text-gray-500 mb-4">{error}</p>
+        <Button onClick={fetchChallanRecords}>Try Again</Button>
+      </div>
+    );
+  }
+
+  if (!challanData?.data || challanData.data.length === 0) {
     return (
       <div className="p-10 text-center">
         <CheckCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">
-          No Approved Challans
+          No Challans Found
         </h3>
         <p className="text-gray-500 mb-4">
-          Approved traffic violation challans will appear here, ready for final
-          processing and issuance.
+          There are currently no challans in the generation queue.
         </p>
-        <p className="text-sm text-gray-400">
-          Complete the review process for pending items to see approved challans
-          here.
-        </p>
+        <Button onClick={fetchChallanRecords} variant="outline">
+          Refresh
+        </Button>
       </div>
     );
   }
 
   const columns = [
     {
-      accessorKey: "license_plate_number",
+      accessorKey: "vehicle_no",
       header: "Vehicle Number",
       cell: ({ row }) => (
         <div className="flex gap-3 items-center text-sm">
           <p className="font-medium text-gray-900">
-            {row?.original?.license_plate_number || "N/A"}
+            {row?.original?.vehicle_no || row?.original?.original_license_plate || "N/A"}
           </p>
         </div>
       ),
     },
     {
       accessorKey: "created_at",
-      header: "Captured time",
+      header: "Queued Time",
       cell: ({ row }) => (
         <p className="text-sm text-gray-600 font-normal">
           {dateFormat(row?.original?.created_at, "datetime")}
@@ -91,31 +170,57 @@ const ChallansGenerated: React.FC = () => {
       ),
     },
     {
-      accessorKey: "image_captured_by_name",
-      header: "Capture by",
+      accessorKey: "reviewed_by_officer_name",
+      header: "Processed by",
       cell: ({ row }) => (
         <p className="text-sm text-gray-600 font-normal">
-          {row?.original?.image_captured_by_name}
+          {row?.original?.reviewed_by_officer_name || "System"}
         </p>
       ),
     },
     {
-      accessorKey: "point_name",
-      header: "Point name",
+      accessorKey: "status",
+      header: "Status",
       cell: ({ row }) => (
-        <p className="text-sm text-gray-600 font-normal">
-          {row?.original?.point_name}
+        <div className="flex items-center">
+          {getStatusBadge(
+            row?.original?.status,
+            row?.original?.challan_number,
+            row?.original?.challan_generation_error
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "gps_location",
+      header: "Location",
+      cell: ({ row }) => (
+        <p className="text-sm text-gray-600 font-normal truncate max-w-32">
+          {row?.original?.gps_location || "N/A"}
         </p>
       ),
     },
     {
       accessorKey: "vio_data",
-      header: "Violation type",
+      header: "Violations",
       cell: ({ row }) => (
-        <div className="space-x-2 flex flex-wrap">
-          {row?.original?.vio_data?.map((vio, index) => (
-            <Badge key={index}>{vio?.detected_violation}</Badge>
-          ))}
+        <div className="space-x-1 flex flex-wrap">
+          {Array.isArray(row?.original?.vio_data) ? (
+            row.original.vio_data.slice(0, 2).map((vio, index) => (
+              <Badge key={index} className="text-xs">
+                {typeof vio === 'string' ? vio : `V${vio}`}
+              </Badge>
+            ))
+          ) : (
+            <Badge className="text-xs">
+              {row?.original?.vio_data || "N/A"}
+            </Badge>
+          )}
+          {Array.isArray(row?.original?.vio_data) && row.original.vio_data.length > 2 && (
+            <Badge className="text-xs bg-gray-100 text-gray-600">
+              +{row.original.vio_data.length - 2}
+            </Badge>
+          )}
         </div>
       ),
     },
@@ -132,25 +237,20 @@ const ChallansGenerated: React.FC = () => {
           <h2 className="text-lg flex items-center gap-1.5 text-gray-900 font-semibold">
             Challans Generated {" "}
             <Badge rounded="full" variant="purple">
-              {data?.pagination?.total_count || 0}
+              {challanData?.data?.length || 0}
             </Badge>
           </h2>
         </div>
         <ReusableTable
           key={currentPage}
           columns={columns}
-          data={data?.data || []}
+          data={challanData?.data || []}
           visibleColumns={5}
-          currentPage={currentPage}
+          currentPage={1}
           itemsPerPage={50}
-          onPageChange={(page) => {
-            setCurrentPage(page);
-            loadNext(
-              `api/v1/analyses?status=pending&items_per_page=50&page=${page}`
-            );
-          }}
+          onPageChange={() => {}} // No pagination for now
           tableHeight="h-[calc(100vh-174px)]"
-          totalRecords={data?.pagination?.total_count || 0}
+          totalRecords={challanData?.data?.length || 0}
         />
       </div>
     </div>

@@ -330,39 +330,119 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
         return;
       }
 
-      const response = await fetch(
-        `${globals?.BASE_URL}/api/v1/analyses/${activeChallana?.id}/review?status=approved`,
+      // Validate required data
+      if (!globals?.BASE_URL) {
+        throw new Error("Backend configuration missing. Please check your environment setup.");
+      }
+
+      if (!activeChallana?.uuid) {
+        throw new Error("Invalid challan data. Please refresh and try again.");
+      }
+
+      if (!currentOfficer) {
+        throw new Error("Officer authentication required. Please log in again.");
+      }
+
+      console.log('🚔 Starting challan generation process...');
+
+      // STEP 1: Prepare challan data (silent background process)
+      const prepareResponse = await fetch(
+        `${globals?.BASE_URL}/api/challan/prepare`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            analysisUuid: activeChallana?.uuid,
+            officerInfo: {
+              id: currentOfficer?.id || currentOfficer?.operatorCd,
+              name: currentOfficer?.name,
+              cadre: currentOfficer?.cadre,
+              operatorCd: currentOfficer?.operatorCd || currentOfficer?.id
+            },
+            selectedViolations: violations?.map(v => ({
+              id: v.id || v.violation_cd,
+              violation_description: v.violation_description || v.description,
+              violation_cd: v.violation_cd || v.id
+            })) || [],
+            modifiedLicensePlate: (activeChallana as any)?.modified_vehicle_details?.registrationNumber ||
+                                 (activeChallana as any)?.parameter_analysis?.rta_data_used?.registrationNumber ||
+                                 activeChallana?.license_plate_number,
+            modificationReason: "Officer review completed via UI"
+          })
         }
       );
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Something went wrong");
+      if (!prepareResponse.ok) {
+        const errorData = await prepareResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to prepare challan data");
       }
 
+      const prepareData = await prepareResponse.json();
+      console.log('✅ Challan prepared successfully:', prepareData);
+
+      // STEP 2: Generate challan with TSeChallan API (background process)
+      const authData = localStorage.getItem('traffic_challan_auth');
+      let operatorToken = null;
+
+      if (authData) {
+        try {
+          const parsed = JSON.parse(authData);
+          operatorToken = parsed.operatorToken || parsed.appSessionToken;
+        } catch (error) {
+          console.warn('⚠️ Could not parse auth data from localStorage');
+        }
+      }
+
+      // Start background generation process
+      if (operatorToken) {
+        fetch(`${globals?.BASE_URL}/api/challan/generate`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${operatorToken}`
+          },
+          body: JSON.stringify({
+            challanUuid: activeChallana?.uuid,
+            challanRecordId: prepareData?.data?.id
+          })
+        }).then(async (response) => {
+          if (response.ok) {
+            const result = await response.json();
+            console.log('✅ Challan generation completed:', result);
+            // Could trigger a refresh of the generated challans list here
+          } else {
+            console.error('❌ Challan generation failed in background');
+          }
+        }).catch(error => {
+          console.error('❌ Background challan generation error:', error);
+        });
+      }
+
+      // STEP 3: Immediately move to generated section (UI feedback)
       showSuccessToast({
-        heading: "Approved Successfully",
-        description: `Challan ${activeChallana?.plateNumber} approved.`,
+        heading: "Challan Queued",
+        description: "Challan has been queued for generation and moved to Generated section.",
         placement: "top-right",
       });
 
-      // Auto-move to next challan after approval
+      // Auto-move to next challan
       if (currentIndex < pendingReviews.length - 1) {
         setCurrentIndex(currentIndex + 1);
         setActiveChallana(pendingReviews[currentIndex + 1]);
       }
+
+      // Remove from pending reviews
       const newPendingReviews = pendingReviews?.filter(
         (item) => item.id !== activeChallana?.id
       );
       setPendingReviews(newPendingReviews);
       setShowGenerateConfirmation(false);
+
     } catch (error: any) {
+      console.error('❌ Challan preparation error:', error);
       showErrorToast({
-        heading: "Error",
-        description: error.message || "Failed to approve challan.",
+        heading: "Generation Failed",
+        description: error.message || "Failed to queue challan. Please try again.",
         placement: "top-right",
       });
     } finally {
@@ -647,7 +727,7 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
               Cancel
             </Button>
             <Button disabled={buttonLoader} onClick={handleApprovedChallana}>
-              {buttonLoader ? "Generating..." : "Confirm & Generate"}
+              {buttonLoader ? "Processing..." : "Confirm & Generate"}
             </Button>
           </div>
         }
