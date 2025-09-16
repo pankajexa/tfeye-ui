@@ -5,6 +5,7 @@ import { Button } from "../ui/button";
 import { Modal } from "../../components/ui/modal";
 import { useToast } from "@/components/toast";
 import { Challan } from "@/types";
+import { apiService } from "@/services/api";
 import { BACKEND_URL } from "@/constants/globalConstants";
 
 interface ViolationType {
@@ -57,17 +58,54 @@ const ImageDetails = ({
     rejectionReasons?.[0]?.id
   );
 
+
   const handleNext = () => {
     if (currentIndex < pendingChallans.length - 1) {
-      setActiveChallana(pendingChallans?.[currentIndex + 1]);
-      setCurrentIndex(currentIndex + 1);
+      const newIndex = currentIndex + 1;
+      setActiveChallana(pendingChallans[newIndex]);
+      setCurrentIndex(newIndex);
+      
+      // Maintain rolling cache of next 5 images
+      setTimeout(() => {
+        const urlCache = window.challanUrlCache || (window.challanUrlCache = new Map());
+        
+        // Preload next 5 from current position
+        for (let i = newIndex + 1; i <= Math.min(newIndex + 5, pendingChallans.length - 1); i++) {
+          const challan = pendingChallans[i];
+          if (challan?.uuid && !urlCache.has(challan.uuid)) {
+            apiService.getImagePresignedUrl(challan.uuid).then(response => {
+              if (response?.success && response?.presignedUrl) {
+                urlCache.set(challan.uuid, response.presignedUrl);
+              }
+            }).catch(err => console.error("Preload failed:", challan.id));
+          }
+        }
+      }, 0);
     }
   };
 
   const handlePrevious = () => {
     if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      setActiveChallana(pendingChallans?.[currentIndex - 1]);
+      const newIndex = currentIndex - 1;
+      setCurrentIndex(newIndex);
+      setActiveChallana(pendingChallans[newIndex]);
+      
+      // Maintain rolling cache of next 5 images from new position
+      setTimeout(() => {
+        const urlCache = window.challanUrlCache || (window.challanUrlCache = new Map());
+        
+        // Preload next 5 from current position (even when going backwards)
+        for (let i = newIndex + 1; i <= Math.min(newIndex + 5, pendingChallans.length - 1); i++) {
+          const challan = pendingChallans[i];
+          if (challan?.uuid && !urlCache.has(challan.uuid)) {
+            apiService.getImagePresignedUrl(challan.uuid).then(response => {
+              if (response?.success && response?.presignedUrl) {
+                urlCache.set(challan.uuid, response.presignedUrl);
+              }
+            }).catch(err => console.error("Preload failed:", challan.id));
+          }
+        }
+      }, 0);
     }
   };
 

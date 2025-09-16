@@ -12,6 +12,13 @@ import { useToast } from "@/components/toast";
 import { useAuth } from "@/context/AuthContext";
 import { Challan } from "@/types";
 
+// Extend Window interface for global cache
+declare global {
+  interface Window {
+    challanUrlCache: Map<string, string>;
+  }
+}
+
 interface ViolationType {
   id: string;
   name: string;
@@ -20,8 +27,8 @@ interface ViolationType {
   penaltyPoints: string | null;
 }
 
-const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
-  const { currentOfficer, isAuthenticated } = useAuth();
+const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
+  const { currentOfficer } = useAuth();
 
   const { data, loading } = useAnalyses(url);
   const [pendingReviews, setPendingReviews] = useState<Challan[]>([]);
@@ -42,25 +49,64 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
   const rejectButtonRef = useRef<HTMLButtonElement>(null);
   const approveButtonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (data?.data?.length > 0) {
-      setPendingReviews(data?.data);
-      const safeIndex = currentIndex ?? 0;
-
-      // check length before accessing
-      if (
-        Array.isArray(data?.data) &&
-        safeIndex >= 0 &&
-        safeIndex < data.data.length
-      ) {
-        setActiveChallana(data.data[safeIndex]);
-        setCurrentIndex(safeIndex);
-      } else {
-        setActiveChallana(data?.data?.[0]);
-        setCurrentIndex(0);
+  // Rolling preload strategy - always keep next 5 images ready
+  const maintainRollingCache = async (currentIndex: number, challans: any[]) => {
+    const urlCache = window.challanUrlCache || (window.challanUrlCache = new Map());
+    
+    // Calculate the range of images to keep cached (current + next 5)
+    const startIndex = currentIndex;
+    const endIndex = Math.min(currentIndex + 5, challans.length - 1);
+    
+    // Preload any missing images in the range
+    const preloadPromises = [];
+    for (let i = startIndex; i <= endIndex; i++) {
+      const challan = challans[i];
+      if (challan?.uuid && !urlCache.has(challan.uuid)) {
+        const preloadPromise = (async () => {
+          try {
+            const response = await apiService.getImagePresignedUrl(challan.uuid);
+            if (response?.success && response?.presignedUrl) {
+              urlCache.set(challan.uuid, response.presignedUrl);
+              return true;
+            }
+          } catch (error) {
+            console.error("Cache failed:", challan.id, error);
+          }
+          return false;
+        })();
+        
+        preloadPromises.push(preloadPromise);
       }
     }
-  }, [data]);
+    
+    if (preloadPromises.length > 0) {
+      await Promise.all(preloadPromises);
+    }
+  };
+
+
+  useEffect(() => {
+    if (data?.data?.length > 0) {
+      setPendingReviews(data.data);
+      
+      // Find the challan with matching ID
+      const targetChallan = data.data.find((item: any) => String(item.id) === String(id));
+      const targetIndex = data.data.findIndex((item: any) => String(item.id) === String(id));
+      
+      if (targetChallan && targetIndex !== -1) {
+        setActiveChallana(targetChallan);
+        setCurrentIndex(targetIndex);
+        // Start rolling cache immediately
+        setTimeout(() => maintainRollingCache(targetIndex, data.data), 100);
+      } else {
+        setActiveChallana(data.data[0]);
+        setCurrentIndex(0);
+        // Start rolling cache immediately
+        setTimeout(() => maintainRollingCache(0, data.data), 100);
+      }
+    }
+  }, [data, id]);
+
 
   const loadAllViolationsData = async () => {
     try {
@@ -121,11 +167,6 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
       
       if (result.success) {
         setPreviousChallans(result.data);
-        showSuccessToast({
-          heading: "Vehicle Details Retrieved",
-          description: `Found vehicle details for ${vehicleNumber}. ${result.data?.data?.imageURLs?.length || 0} previous challan images available.`,
-          placement: "top-right",
-        });
       } else {
         showErrorToast({
           heading: "No Previous Challans",
@@ -335,12 +376,12 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
         throw new Error("Backend configuration missing. Please check your environment setup.");
       }
 
-      if (!activeChallana?.uuid) {
+      if (!(activeChallana as any)?.uuid) {
         throw new Error("Invalid challan data. Please refresh and try again.");
       }
 
       console.log('👤 Current Officer Info:', currentOfficer);
-      console.log('🔐 Authentication Status:', isAuthenticated);
+      console.log('🔐 Authentication Status:', !!currentOfficer);
 
       // Get officer info (use currentOfficer or create with defaults)
       let officerInfo = currentOfficer;
@@ -352,15 +393,15 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
           name: 'Test Officer',
           cadre: 'Police Constable',
           operatorCd: '23001007'
-        };
+        } as any;
       } else {
         // Ensure required fields exist, add defaults if missing
         officerInfo = {
-          id: officerInfo.id || officerInfo.operatorCd || 'TEST_OFFICER_001',
+          id: officerInfo.id || (officerInfo as any).operatorCd || 'TEST_OFFICER_001',
           name: officerInfo.name || 'Test Officer',
-          cadre: officerInfo.cadre || 'Police Constable',
-          operatorCd: officerInfo.operatorCd || officerInfo.id || '23001007'
-        };
+          cadre: (officerInfo as any).cadre || 'Police Constable',
+          operatorCd: (officerInfo as any).operatorCd || officerInfo.id || '23001007'
+        } as any;
         console.log('✅ Enhanced officer info with defaults:', officerInfo);
       }
 
@@ -376,31 +417,31 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
         hasOfficerInfo: !!officerInfo,
         officerId: officerInfo?.id,
         officerName: officerInfo?.name,
-        operatorCd: officerInfo?.operatorCd,
+        operatorCd: (officerInfo as any)?.operatorCd,
         allKeys: officerInfo ? Object.keys(officerInfo) : []
       });
 
       // Ensure we have valid officer info
       const finalOfficerInfo = {
-        id: officerInfo?.id || officerInfo?.operatorCd || officerInfo?.operatorCD || 'DEFAULT_OFFICER_ID',
+        id: officerInfo?.id || (officerInfo as any)?.operatorCd || (officerInfo as any)?.operatorCD || 'DEFAULT_OFFICER_ID',
         name: officerInfo?.name || 'Unknown Officer',
         cadre: officerInfo?.cadre || 'Unknown',
-        operatorCd: officerInfo?.operatorCd || officerInfo?.operatorCD || officerInfo?.id || '23001007'
+        operatorCd: (officerInfo as any)?.operatorCd || (officerInfo as any)?.operatorCD || officerInfo?.id || '23001007'
       };
 
       console.log('🔍 Final officer info to send:', finalOfficerInfo);
 
       const preparePayload = {
-        analysisUuid: activeChallana?.uuid,
+        analysisUuid: (activeChallana as any)?.uuid,
         officerInfo: finalOfficerInfo,
         selectedViolations: violations?.map(v => ({
-          id: v.id || v.violation_cd,
-          violation_description: v.violation_description || v.description,
-          violation_cd: v.violation_cd || v.id
+          id: v,
+          violation_description: v,
+          violation_cd: v
         })) || [],
         modifiedLicensePlate: (activeChallana as any)?.modified_vehicle_details?.registrationNumber ||
                              (activeChallana as any)?.parameter_analysis?.rta_data_used?.registrationNumber ||
-                             activeChallana?.license_plate_number,
+                             (activeChallana as any)?.license_plate_number,
         modificationReason: "Officer review completed via UI"
       };
 
@@ -474,8 +515,11 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
 
       // Auto-move to next challan
       if (currentIndex < pendingReviews.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-        setActiveChallana(pendingReviews[currentIndex + 1]);
+        const nextIndex = currentIndex + 1;
+        const nextChallan = pendingReviews[nextIndex];
+        setCurrentIndex(nextIndex);
+        
+        setActiveChallana(nextChallan);
       }
 
       // Remove from pending reviews
@@ -506,25 +550,42 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
     try {
       setButtonLoader(true);
       const response = await apiService.duplicateAnalysis(
-        activeChallana?.id || "",
+        (activeChallana as any)?.uuid || activeChallana?.id || "",
         duplicateLicensePlate,
         duplicateReason
       );
 
-      if (response.success) {
+      if (response.success && response.data) {
+        const nextChallanIndex = currentIndex + 1;
+        
+        // Add the new challan to the list right after the current one
+        const newChallan = response.data;
+        const updatedPendingReviews = [...pendingReviews];
+        updatedPendingReviews.splice(currentIndex + 1, 0, newChallan);
+        setPendingReviews(updatedPendingReviews);
+        
         showSuccessToast({
           heading: "Success",
-          description: "Duplicate analysis created successfully",
+          description: "Another vehicle ticket created successfully",
           placement: "top-right",
         });
+        
+        // Close modal and clear form
         setShowDuplicateModal(false);
         setDuplicateLicensePlate("");
         setDuplicateReason("");
+        
+        // Navigate to the new challan
+        setCurrentIndex(nextChallanIndex);
+        setActiveChallana(newChallan);
+        
+        // Start preloading for the new position
+        setTimeout(() => maintainRollingCache(nextChallanIndex, updatedPendingReviews), 100);
       }
     } catch (error: any) {
       showErrorToast({
         heading: "Error",
-        description: error.message || "Failed to create duplicate analysis",
+        description: error.message || "Failed to create vehicle ticket",
         placement: "top-right",
       });
     } finally {
@@ -683,7 +744,7 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
         }}
         title="Add Another Vehicle"
         size="md"
-        description="Create a duplicate analysis for another vehicle in this image"
+        description="Add another vehicle found in this same image"
         children={
           <div className="space-y-4">
             <div className="space-y-2">
@@ -702,7 +763,7 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
                 value={duplicateReason}
                 onChange={(e) => setDuplicateReason(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Enter reason for creating duplicate"
+                placeholder="Enter reason for adding another vehicle"
                 rows={3}
               />
             </div>
@@ -724,7 +785,7 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
               disabled={!duplicateLicensePlate.trim() || buttonLoader}
               onClick={handleDuplicateAnalysis}
             >
-              {buttonLoader ? "Creating..." : "Create Duplicate"}
+              {buttonLoader ? "Creating..." : "Create Ticket"}
             </Button>
           </div>
         }

@@ -7,10 +7,8 @@ const PendingChallan = () => {
 
   const pointName = searchParams.get("point_name");
 
-  // base url
+  // URL for fetching the list including the target challan
   let url = `api/v1/analyses?status=pending&items_per_page=50&page=1`;
-
-  // append point_name only if present
   if (pointName) {
     url += `&point_name=${encodeURIComponent(pointName)}`;
   }

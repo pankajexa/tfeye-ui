@@ -74,13 +74,24 @@ const ChallanCard = ({
     }
   };
 
+  // Simple URL cache - static across all component instances
+  const urlCache = window.challanUrlCache || (window.challanUrlCache = new Map());
+
   const fetchImageUrl = async () => {
     if (!challanUuid) return;
+    
     // If we already have the image for this UUID, do not re-show loader or refetch
     if (lastFetchedUuidRef.current === challanUuid && imageUrl) {
       return;
     }
 
+    // CHECK GLOBAL CACHE FIRST
+    if (urlCache.has(challanUuid)) {
+      setImageUrl(urlCache.get(challanUuid));
+      lastFetchedUuidRef.current = challanUuid;
+      setImageLoading(false);
+      return;
+    }
     setImageLoading(true);
     setImageError("");
     try {
@@ -94,6 +105,8 @@ const ChallanCard = ({
       const response = await apiService.getImagePresignedUrl(challanUuid);
       if (response.success) {
         if (response.presignedUrl) {
+          // Cache the URL for future use
+          urlCache.set(challanUuid, response.presignedUrl);
           setImageUrl(response?.presignedUrl);
         } else if (response?.directUrl) {
           setImageUrl(response?.directUrl);

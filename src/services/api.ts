@@ -669,16 +669,19 @@ class ApiService {
   }
 
   // Get previous challans for a vehicle using backend API
-  async getPreviousChallans(registrationNumber: string): Promise<{ success: boolean; data?: any; error?: string }> {
+  async getPreviousChallans(licensePlate: string): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      console.log("🔍 Fetching previous challans for:", registrationNumber);
+      console.log("🔍 Fetching previous challans for:", licensePlate);
+      const authData = JSON.parse(localStorage.getItem('traffic_challan_auth') || '{}');
+      console.log("🔑 Auth token available:", !!authData.operatorToken);
       
-      const response = await fetch(`${this.baseUrl}/api/vehicle-details`, {
+      const response = await fetch(`${this.baseUrl}/api/challan/vehicle-info`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${JSON.parse(localStorage.getItem('traffic_challan_auth') || '{}').operatorToken || ''}`
         },
-        body: JSON.stringify({ registrationNumber }),
+        body: JSON.stringify({ licensePlate }),
       });
 
       console.log("📥 Backend API Response:", {
@@ -708,18 +711,18 @@ class ApiService {
           rcStatus: data.data.rcStatus
         });
         
-        // Transform RTA data format to match UI expectations
+        // Transform the new API response format to match UI expectations
         const transformedData = {
           responseCode: "0",
           responseDesc: "Success",
           data: {
             regnNo: data.data.registrationNumber,
             color: data.data.color,
-            wheeler: "4", // Default since RTA doesn't provide this
+            wheeler: data.data.wheeler,
             maker: data.data.make,
             model: data.data.model,
-            vehtype: data.data.model, // Use model as vehicle type
-            imageURLs: [] // RTA data doesn't include previous challan images
+            vehtype: data.data.vehicleType,
+            imageURLs: data.data.imageURLs || []
           }
         };
         
@@ -1164,32 +1167,6 @@ class ApiService {
     }
   }
 
-  // Duplicate Analysis API
-  async duplicateAnalysis(originalAnalysisUuid: string, manualLicensePlate: string, modificationReason?: string) {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/challan/duplicate-analysis`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          originalAnalysisUuid,
-          manualLicensePlate,
-          modificationReason
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Duplicate analysis failed: ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('❌ Duplicate analysis error:', error);
-      throw error;
-    }
-  }
 
   /**
    * Creates a duplicate analysis with a manually corrected license plate

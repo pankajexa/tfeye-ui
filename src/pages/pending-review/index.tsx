@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, CheckCircle, Copy } from "lucide-react";
+import { Upload, CheckCircle } from "lucide-react";
 import { Header } from "@/components";
 import { Button } from "@/components/ui/button";
 import { useAnalyses } from "@/hooks/useAnalyses";
@@ -27,7 +27,7 @@ const PendingForReview = () => {
   const [manualLicensePlate, setManualLicensePlate] = useState("");
   const [modificationReason, setModificationReason] = useState("");
   const [duplicateLoading, setDuplicateLoading] = useState(false);
-  const { showSuccessToast, showErrorToast } = useToast();
+  const { success: showSuccessToast, error: showErrorToast } = useToast();
 
   const handleDuplicateAnalysis = async () => {
     if (!selectedAnalysis || !manualLicensePlate.trim()) {
@@ -128,22 +128,6 @@ const PendingForReview = () => {
               {row?.original?.license_plate_number || "N/A"}
             </p>
           </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.preventDefault();
-              setSelectedAnalysis({
-                id: row?.original?.id,
-                licensePlate: row?.original?.license_plate_number || ""
-              });
-              setManualLicensePlate(row?.original?.license_plate_number || "");
-              setShowDuplicateModal(true);
-            }}
-            title="Create duplicate with corrected license plate"
-          >
-            <Copy className="h-4 w-4" />
-          </Button>
         </div>
       ),
     },
@@ -222,12 +206,12 @@ const PendingForReview = () => {
           </div>
         </div>
         <ReusableTable
-          key={currentPage}
-          columns={columns}
-          data={data?.data || []}
-          visibleColumns={5}
-          currentPage={currentPage}
-          itemsPerPage={50}
+            key={currentPage}
+            columns={columns}
+            data={data?.data || []}
+            visibleColumns={5}
+            currentPage={currentPage}
+            itemsPerPage={50}
           onPageChange={(page) => {
             setCurrentPage(page);
             let url = `api/v1/analyses?status=pending&items_per_page=50&page=${page}`;
