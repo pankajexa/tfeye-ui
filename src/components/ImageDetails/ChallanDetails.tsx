@@ -339,40 +339,75 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
         throw new Error("Invalid challan data. Please refresh and try again.");
       }
 
-      if (!currentOfficer) {
-        throw new Error("Officer authentication required. Please log in again.");
+      console.log('👤 Current Officer Info:', currentOfficer);
+
+      // Get officer info (use currentOfficer or fallback to localStorage)
+      let officerInfo = currentOfficer;
+
+      if (!officerInfo || !officerInfo.name) {
+        console.log('🔄 Officer info not available in context, checking localStorage...');
+
+        // Try to get officer info from localStorage as fallback
+        const authData = localStorage.getItem('traffic_challan_auth');
+        if (authData) {
+          try {
+            const parsed = JSON.parse(authData);
+            if (parsed.currentOfficer) {
+              console.log('✅ Found officer info in localStorage:', parsed.currentOfficer);
+              officerInfo = parsed.currentOfficer;
+            } else {
+              throw new Error("Officer authentication required. Please log in again.");
+            }
+          } catch (error) {
+            throw new Error("Officer authentication required. Please log in again.");
+          }
+        } else {
+          throw new Error("Officer authentication required. Please log in again.");
+        }
       }
 
       console.log('🚔 Starting challan generation process...');
 
       // STEP 1: Prepare challan data (silent background process)
+      const backendUrl = globals?.BASE_URL || 'http://localhost:3001';
+      console.log('📡 API URL:', `${backendUrl}/api/challan/prepare`);
+      console.log('🌐 Backend URL from globals:', globals?.BASE_URL);
+
+      const preparePayload = {
+        analysisUuid: activeChallana?.uuid,
+        officerInfo: {
+          id: officerInfo?.id || officerInfo?.operatorCd,
+          name: officerInfo?.name,
+          cadre: officerInfo?.cadre,
+          operatorCd: officerInfo?.operatorCd || officerInfo?.id
+        },
+        selectedViolations: violations?.map(v => ({
+          id: v.id || v.violation_cd,
+          violation_description: v.violation_description || v.description,
+          violation_cd: v.violation_cd || v.id
+        })) || [],
+        modifiedLicensePlate: (activeChallana as any)?.modified_vehicle_details?.registrationNumber ||
+                             (activeChallana as any)?.parameter_analysis?.rta_data_used?.registrationNumber ||
+                             activeChallana?.license_plate_number,
+        modificationReason: "Officer review completed via UI"
+      };
+
+      console.log('📤 Prepare payload:', JSON.stringify(preparePayload, null, 2));
+
       const prepareResponse = await fetch(
-        `${globals?.BASE_URL}/api/challan/prepare`,
+        `${backendUrl}/api/challan/prepare`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            analysisUuid: activeChallana?.uuid,
-            officerInfo: {
-              id: currentOfficer?.id || currentOfficer?.operatorCd,
-              name: currentOfficer?.name,
-              cadre: currentOfficer?.cadre,
-              operatorCd: currentOfficer?.operatorCd || currentOfficer?.id
-            },
-            selectedViolations: violations?.map(v => ({
-              id: v.id || v.violation_cd,
-              violation_description: v.violation_description || v.description,
-              violation_cd: v.violation_cd || v.id
-            })) || [],
-            modifiedLicensePlate: (activeChallana as any)?.modified_vehicle_details?.registrationNumber ||
-                                 (activeChallana as any)?.parameter_analysis?.rta_data_used?.registrationNumber ||
-                                 activeChallana?.license_plate_number,
-            modificationReason: "Officer review completed via UI"
-          })
+          body: JSON.stringify(preparePayload)
         }
       );
 
+      console.log('📥 Prepare response status:', prepareResponse.status, prepareResponse.statusText);
+
       if (!prepareResponse.ok) {
+        const errorText = await prepareResponse.text();
+        console.error('❌ Prepare API error:', errorText);
         const errorData = await prepareResponse.json().catch(() => ({}));
         throw new Error(errorData.error || "Failed to prepare challan data");
       }
@@ -395,7 +430,7 @@ const ChallanDetails: React.FC<{ url: string }> = ({ url }) => {
 
       // Start background generation process
       if (operatorToken) {
-        fetch(`${globals?.BASE_URL}/api/challan/generate`, {
+        fetch(`${backendUrl}/api/challan/generate`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

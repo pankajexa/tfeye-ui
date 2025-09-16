@@ -20,15 +20,25 @@ const ChallansGenerated: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `${process.env.VITE_BACKEND_API_URL || 'http://localhost:3001'}/api/challan/records?limit=50&offset=0`
-      );
+      const backendUrl = process.env.VITE_BACKEND_API_URL || 'http://localhost:3001';
+      const apiUrl = `${backendUrl}/api/challan/records?limit=50&offset=0`;
+
+      console.log('🌐 Environment VITE_BACKEND_API_URL:', process.env.VITE_BACKEND_API_URL);
+
+      console.log('🌐 Fetching challan records from:', apiUrl);
+
+      const response = await fetch(apiUrl);
+
+      console.log('📥 Response status:', response.status, response.statusText);
 
       if (!response.ok) {
-        throw new Error('Failed to fetch challan records');
+        const errorText = await response.text();
+        console.error('❌ API Error response:', errorText);
+        throw new Error(`Failed to fetch challan records: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('✅ Challan records fetched:', data);
       setChallanData(data);
     } catch (err: any) {
       setError(err.message);
