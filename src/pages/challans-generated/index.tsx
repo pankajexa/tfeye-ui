@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import ReusableTable from "@/components/ui/ReusableTable";
 import { Badge } from "@/components/ui/Badge";
 import { dateFormat } from "@/utils/dateFormat";
+import { BACKEND_URL } from '@/constants/globalConstants';
 
 const ChallansGenerated: React.FC = () => {
   const [challanData, setChallanData] = useState<any>(null);
@@ -20,11 +21,12 @@ const ChallansGenerated: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const backendUrl = process.env.VITE_BACKEND_API_URL;
+      // Use consistent backend URL from constants
+      const backendUrl = BACKEND_URL;
       // Use the specific endpoint for generated challans
       const apiUrl = `${backendUrl}/api/challan/records?status=generated&limit=50&offset=0`;
 
-      console.log('🌐 Environment VITE_BACKEND_API_URL:', process.env.VITE_BACKEND_API_URL);
+      console.log('🌐 Environment VITE_BACKEND_API_URL:', import.meta.env.VITE_BACKEND_API_URL);
       console.log('🌐 Fetching challan records from:', apiUrl);
 
       // Add authentication headers if needed
