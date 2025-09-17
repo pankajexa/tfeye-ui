@@ -1137,16 +1137,16 @@ class ApiService {
     try {
       console.log('🚔 Generating challan with TSeChallan API...');
 
-      // Prepare FormData
+      // Prepare FormData with correct field names
       const formData = new FormData();
-      formData.append('image', imageFile);
+      formData.append('img', imageFile); // Match backend expectation
 
       if (videoFile) {
         formData.append('video', videoFile);
       }
 
-      // Add challan data as JSON string
-      formData.append('data', JSON.stringify(challanData));
+      // Add challan data as JSON string with correct field name
+      formData.append('challanInfo', JSON.stringify(challanData)); // Match backend expectation
 
       // Prepare headers with operator token
       const headers: Record<string, string> = {};

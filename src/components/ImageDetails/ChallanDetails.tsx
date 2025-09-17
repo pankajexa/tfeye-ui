@@ -486,29 +486,82 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         }
       }
 
-      // Start background generation process
+      // Start background generation process with image file
       if (operatorToken) {
-        fetch(`${backendUrl}/api/challan/generate`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${operatorToken}`
-          },
-          body: JSON.stringify({
-            challanUuid: (activeChallana as any)?.uuid,
-            challanRecordId: prepareData?.data?.id
-          })
-        }).then(async (response) => {
-          if (response.ok) {
-            const result = await response.json();
-            console.log('✅ Challan generation completed:', result);
-            // Could trigger a refresh of the generated challans list here
-          } else {
-            console.error('❌ Challan generation failed in background');
+        // Fetch image from S3 and prepare FormData
+        const formData = new FormData();
+
+        try {
+          // Fetch image from S3 URL
+          const imageResponse = await fetch((activeChallana as any)?.image_s3_url);
+          if (!imageResponse.ok) {
+            throw new Error('Failed to fetch image from S3');
           }
-        }).catch(error => {
-          console.error('❌ Background challan generation error:', error);
-        });
+          const imageBlob = await imageResponse.blob();
+          const imageFile = new File([imageBlob], 'violation_image.jpg', { type: 'image/jpeg' });
+          formData.append('img', imageFile);
+
+          // Add challan data matching the expected format
+          const challanInfo = {
+            vendorCode: "Squarebox",
+            offenceDtTime: new Date().toISOString().replace('T', ' ').substring(0, 16),
+            vioData: prepareData?.data?.vio_data || "1",
+            capturedByCD: finalOfficerInfo.operatorCd,
+            operatorCD: finalOfficerInfo.operatorCd,
+            vehRemak: "N",
+            gpsLatti: (activeChallana as any)?.gpsLatti || "17.41565980",
+            gpsLong: (activeChallana as any)?.gpsLong || "78.41276220",
+            gpsLocation: (activeChallana as any)?.gpsLocation || "Apollo Emergency Rd, Telangana 500096",
+            vehicleNo: (activeChallana as any)?.modified_vehicle_details?.registrationNumber ||
+                      (activeChallana as any)?.parameter_analysis?.rta_data_used?.registrationNumber ||
+                      (activeChallana as any)?.license_plate_number ||
+                      activeChallana?.plateNumber,
+            pointCD: finalOfficerInfo.operatorCd.slice(0, 6), // Extract point code from operator CD
+            appName: "SQBX"
+          };
+          formData.append('challanInfo', JSON.stringify(challanInfo));
+
+          // Call the correct endpoint with FormData
+          fetch(`${backendUrl}/api/generate-challan`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${operatorToken}`
+            },
+            body: formData
+          }).then(async (response) => {
+            if (response.ok) {
+              const result = await response.json();
+              console.log('✅ Challan generation completed:', result);
+              showSuccessToast({
+                heading: "Challan Generated",
+                description: "Challan has been successfully generated with image file.",
+                placement: "top-right",
+              });
+            } else {
+              const errorData = await response.json().catch(() => ({}));
+              console.error('❌ Challan generation failed:', errorData);
+              showErrorToast({
+                heading: "Generation Failed",
+                description: errorData.error || "Challan generation failed. Please try again.",
+                placement: "top-right",
+              });
+            }
+          }).catch(error => {
+            console.error('❌ Background challan generation error:', error);
+            showErrorToast({
+              heading: "Generation Error",
+              description: "Failed to generate challan. Please check your connection and try again.",
+              placement: "top-right",
+            });
+          });
+        } catch (imageError) {
+          console.error('❌ Failed to fetch image for challan generation:', imageError);
+          showErrorToast({
+            heading: "Image Error",
+            description: "Failed to load image for challan generation. Please try again.",
+            placement: "top-right",
+          });
+        }
       }
 
       // STEP 3: Immediately move to generated section (UI feedback)
