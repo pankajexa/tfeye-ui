@@ -82,13 +82,15 @@ const ViolationSelect = React.forwardRef<HTMLDivElement, ViolationSelectProps>(
     const [internalIsOpen, setInternalIsOpen] = React.useState<boolean>(
       hideTrigger ? true : autoOpen
     );
-    
+
     // Use external control if provided, otherwise use internal state
-    const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+    const isOpen =
+      externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
     const [searchTerm, setSearchTerm] = React.useState("");
     const [dropdownPosition, setDropdownPosition] = React.useState<
       "top" | "bottom"
     >("bottom");
+
     const [selectedValues, setSelectedValues] = React.useState<string[]>(() => {
       const initialValue = value || defaultValue;
       return Array.isArray(initialValue)
@@ -97,6 +99,7 @@ const ViolationSelect = React.forwardRef<HTMLDivElement, ViolationSelectProps>(
         ? [initialValue]
         : [];
     });
+
     // sync with external value changes
     React.useEffect(() => {
       if (typeof value === "undefined") return;
@@ -135,7 +138,11 @@ const ViolationSelect = React.forwardRef<HTMLDivElement, ViolationSelectProps>(
     React.useEffect(() => {
       const onDocClick = (e: MouseEvent | TouchEvent) => {
         const node = containerRef.current;
-        if (node && !node.contains(e.target as Node) && externalIsOpen === undefined) {
+        if (
+          node &&
+          !node.contains(e.target as Node) &&
+          externalIsOpen === undefined
+        ) {
           setInternalIsOpen(false);
         }
       };
@@ -216,7 +223,11 @@ const ViolationSelect = React.forwardRef<HTMLDivElement, ViolationSelectProps>(
                 disabled && "cursor-not-allowed",
                 className
               )}
-              onClick={() => !disabled && externalIsOpen === undefined && setInternalIsOpen(!isOpen)}
+              onClick={() =>
+                !disabled &&
+                externalIsOpen === undefined &&
+                setInternalIsOpen(!isOpen)
+              }
               aria-expanded={isOpen}
               aria-haspopup="listbox"
               role="combobox"

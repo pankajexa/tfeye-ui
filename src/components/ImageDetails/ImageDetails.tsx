@@ -28,7 +28,6 @@ interface ImageDetailsProps {
   setAllViolationData: (violations: ViolationType[]) => void;
 }
 
-
 const rejectionReasons = [
   { id: "Poor image quality", name: "Poor image quality" },
   { id: "Number plate not visible", name: "Number plate not visible" },
@@ -52,32 +51,42 @@ const ImageDetails = ({
   setPendingReviews,
   setViolations,
   violations,
+  wheelerType,
+  setWheelerType,
+  violationsByWheeler,
 }) => {
   const { success: showSuccessToast, error: showErrorToast } = useToast();
   const [rejectionReason, setRejectionReason] = useState(
     rejectionReasons?.[0]?.id
   );
 
-
   const handleNext = () => {
     if (currentIndex < pendingChallans.length - 1) {
       const newIndex = currentIndex + 1;
       setActiveChallana(pendingChallans[newIndex]);
       setCurrentIndex(newIndex);
-      
+
       // Maintain rolling cache of next 5 images
       setTimeout(() => {
-        const urlCache = window.challanUrlCache || (window.challanUrlCache = new Map());
-        
+        const urlCache =
+          window.challanUrlCache || (window.challanUrlCache = new Map());
+
         // Preload next 5 from current position
-        for (let i = newIndex + 1; i <= Math.min(newIndex + 5, pendingChallans.length - 1); i++) {
+        for (
+          let i = newIndex + 1;
+          i <= Math.min(newIndex + 5, pendingChallans.length - 1);
+          i++
+        ) {
           const challan = pendingChallans[i];
           if (challan?.uuid && !urlCache.has(challan.uuid)) {
-            apiService.getImagePresignedUrl(challan.uuid).then(response => {
-              if (response?.success && response?.presignedUrl) {
-                urlCache.set(challan.uuid, response.presignedUrl);
-              }
-            }).catch(err => console.error("Preload failed:", challan.id));
+            apiService
+              .getImagePresignedUrl(challan.uuid)
+              .then((response) => {
+                if (response?.success && response?.presignedUrl) {
+                  urlCache.set(challan.uuid, response.presignedUrl);
+                }
+              })
+              .catch((err) => console.error("Preload failed:", challan.id));
           }
         }
       }, 0);
@@ -89,20 +98,28 @@ const ImageDetails = ({
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
       setActiveChallana(pendingChallans[newIndex]);
-      
+
       // Maintain rolling cache of next 5 images from new position
       setTimeout(() => {
-        const urlCache = window.challanUrlCache || (window.challanUrlCache = new Map());
-        
+        const urlCache =
+          window.challanUrlCache || (window.challanUrlCache = new Map());
+
         // Preload next 5 from current position (even when going backwards)
-        for (let i = newIndex + 1; i <= Math.min(newIndex + 5, pendingChallans.length - 1); i++) {
+        for (
+          let i = newIndex + 1;
+          i <= Math.min(newIndex + 5, pendingChallans.length - 1);
+          i++
+        ) {
           const challan = pendingChallans[i];
           if (challan?.uuid && !urlCache.has(challan.uuid)) {
-            apiService.getImagePresignedUrl(challan.uuid).then(response => {
-              if (response?.success && response?.presignedUrl) {
-                urlCache.set(challan.uuid, response.presignedUrl);
-              }
-            }).catch(err => console.error("Preload failed:", challan.id));
+            apiService
+              .getImagePresignedUrl(challan.uuid)
+              .then((response) => {
+                if (response?.success && response?.presignedUrl) {
+                  urlCache.set(challan.uuid, response.presignedUrl);
+                }
+              })
+              .catch((err) => console.error("Preload failed:", challan.id));
           }
         }
       }, 0);
@@ -271,6 +288,9 @@ const ImageDetails = ({
         setAllViolationData={setAllViolationData}
         setViolations={setViolations}
         violations={violations}
+        wheelerType={wheelerType}
+        setWheelerType={setWheelerType}
+        violationsByWheeler={violationsByWheeler}
       />
     </div>
   );

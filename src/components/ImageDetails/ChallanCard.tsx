@@ -18,6 +18,7 @@ import { ViolationSelect } from "../ui/violation-select";
 import { RiResetLeftLine } from "react-icons/ri";
 import { Menu, MenuButton, MenuItems } from "@headlessui/react";
 import { Badge } from "../ui/Badge";
+import { Select } from "@/components/ui/select";
 
 interface ChallanCardProps {
   challan: Challan;
@@ -38,6 +39,42 @@ const violationVariants = [
   "teal",
 ];
 
+const wheelerTypes = [
+  {
+    id: "2",
+    name: "Motorcycle",
+  },
+  {
+    id: "3",
+    name: "Auto rickshaw",
+  },
+  {
+    id: "4",
+    name: "Car",
+  },
+  {
+    id: "L",
+    name: "L",
+  },
+  {
+    id: "T",
+    name: "T",
+  },
+];
+const wheelerCd = {
+  scooter: "2",
+  motorcycle: "2",
+  "auto-rickshaw": "3",
+  truck: "T",
+  car: "4",
+  "2": "2",
+  "3": "3",
+  "4": "4",
+  L: "L",
+  T: "T",
+  Unknown: "2",
+};
+
 const ChallanCard = ({
   challan,
   onAction,
@@ -45,12 +82,16 @@ const ChallanCard = ({
   setAllViolationData,
   setViolations,
   violations,
+  wheelerType,
+  setWheelerType,
+  violationsByWheeler,
 }) => {
   // Image presigned URL state
   const [imageUrl, setImageUrl] = useState<string>("");
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState<string>("");
   const [registrationNumber, setRegistrationNumber] = useState("");
+  const [violationsData, setViolationsData] = useState([]);
   const { error: showErrorToast } = useToast();
 
   const challanUuid =
@@ -60,6 +101,56 @@ const ChallanCard = ({
 
   // Track the last fetched UUID to avoid unnecessary reloads
   const lastFetchedUuidRef = React.useRef<string | null>(null);
+
+  const updateWheelerAndVio = (wheelCode, vioData) => {
+    // Get all possible violations for this wheelCode
+    const wheelCodeViolations = violationsByWheeler?.[wheelCode] || [];
+    setViolationsData(wheelCodeViolations);
+    if (Array.isArray(vioData) && vioData.length > 0) {
+      const offenceCodes = vioData.map((item) => String(item?.offence_cd));
+
+      const filteredViolations = wheelCodeViolations?.filter((vio) =>
+        offenceCodes.includes(String(vio.offence_cd))
+      );
+
+      setViolations(filteredViolations);
+      return filteredViolations;
+    } else {
+      setViolations([]);
+      return [];
+    }
+  };
+
+  const getViolationDetails = () => {
+    let vehicleType = null;
+
+    if (challan.vehicle_type) {
+      vehicleType = challan.vehicle_type;
+    }
+
+    // Step 2: If still null, check parameter_analysis.visual_analysis.vehicle_type
+    else if (challan.parameter_analysis?.visual_analysis?.vehicle_type) {
+      vehicleType = challan.parameter_analysis.visual_analysis.vehicle_type;
+    }
+
+    // Step 3: If still null, check vio_data[0].wheeler_cd
+    else if (challan.vio_data?.length > 0 && challan.vio_data[0].wheeler_cd) {
+      vehicleType = challan.vio_data[0].wheeler_cd;
+    }
+
+    // Step 4: Fallback to "2"
+    else {
+      vehicleType = "2";
+    }
+
+    // Normalize to lower-case before mapping
+    const normalizedKey = String(vehicleType).toLowerCase();
+
+    const vehilceCd = wheelerCd[normalizedKey] || wheelerCd.Unknown;
+
+    setWheelerType(vehilceCd);
+    updateWheelerAndVio(vehilceCd, challan?.vio_data ?? []);
+  };
 
   const getChallanDetails = () => {
     if (!challanUuid) return;
@@ -77,10 +168,7 @@ const ChallanCard = ({
     } else {
       setRegistrationNumber((challan as any)?.license_plate_number);
     }
-    const v = (challan as any)?.vio_data ?? challan?.vio_data;
-    if (Array.isArray(v) && v.length > 0) {
-      setViolations(challan?.vio_data || []);
-    }
+
     // If we already have the image for this UUID, do not re-show loader or refetch
     if (lastFetchedUuidRef.current === challanUuid && imageUrl) {
       return;
@@ -146,6 +234,7 @@ const ChallanCard = ({
   useEffect(() => {
     fetchImageUrl();
     getChallanDetails();
+    getViolationDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challanUuid]);
 
@@ -232,6 +321,11 @@ const ChallanCard = ({
         </p>
       </div>
     );
+  };
+
+  const handleUpdateWheelerType = (value) => {
+    setWheelerType(value);
+    updateWheelerAndVio(value, violations);
   };
 
   const fields = [
@@ -462,8 +556,9 @@ const ChallanCard = ({
                     {fields?.map(({ key, label, modifiedKey }) => {
                       const analysis = (challan as any)?.parameter_analysis
                         ?.comparison_result?.parameter_analysis?.[key];
-                      const modified = (challan as any)
-                        ?.modified_vehicle_details;
+                      const modified =
+                        (challan as any)?.modified_vehicle_details ||
+                        (challan as any)?.parameter_analysis?.rta_data_used;
 
                       let rtaValue: any;
                       let detectedValue: any;
@@ -556,11 +651,24 @@ const ChallanCard = ({
               </div>
               {/* Simplified Violation Analysis - Moved to Bottom */}
               <div className="w-full">
-                <div className="space-y-5 pt-3 w-full">
-                  <h4 className="text-sm font-semibold text-primary">
-                    Violation(s) Detected{" "}
-                    {violations?.length ? `(${violations.length})` : ""}
-                  </h4>
+                <div className="space-y-4 pt-3 w-full">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-sm font-semibold text-primary">
+                      Violation(s) Detected{" "}
+                      {violations?.length ? `(${violations.length})` : ""}
+                    </h4>
+                    <div className="w-[180px]">
+                      <Select
+                        // label="Wheeler Type"
+                        placeholder="Select point name"
+                        value={wheelerType || ""}
+                        onValueChange={(value) =>
+                          handleUpdateWheelerType(value)
+                        }
+                        options={wheelerTypes || []}
+                      />
+                    </div>
+                  </div>
 
                   <div className="space-y-2">
                     {violations && violations.length > 0 ? (
@@ -591,6 +699,7 @@ const ChallanCard = ({
                       </div>
                     )}
                   </div>
+
                   <div className="w-full">
                     <Menu as="div" className="relative w-full">
                       {({ open, close }) => (
@@ -605,8 +714,12 @@ const ChallanCard = ({
                             className="absolute right-0 z-10 mt-0 w-full origin-top-right rounded-md bg-white shadow-lg outline-1 outline-black/5"
                           >
                             <ViolationSelect
-                              options={allViolationData || []}
-                              value={violations?.map((item) => item?.id) || []}
+                              options={violationsData || []}
+                              value={
+                                Array.isArray(violations)
+                                  ? violations.map((item) => Number(item?.id))
+                                  : []
+                              }
                               onValueChange={(values) => {
                                 if (Array.isArray(values)) {
                                   const unique = Array.from(
