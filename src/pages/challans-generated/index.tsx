@@ -27,18 +27,52 @@ const ChallansGenerated: React.FC = () => {
       console.log('🌐 Environment VITE_BACKEND_API_URL:', process.env.VITE_BACKEND_API_URL);
       console.log('🌐 Fetching challan records from:', apiUrl);
 
-      const response = await fetch(apiUrl);
+      // Add authentication headers if needed
+      const authData = localStorage.getItem('traffic_challan_auth');
+      let headers: Record<string, string> = {};
+
+      if (authData) {
+        try {
+          const parsed = JSON.parse(authData);
+          const operatorToken = parsed.operatorToken || parsed.appSessionToken;
+          if (operatorToken) {
+            headers['Authorization'] = `Bearer ${operatorToken}`;
+          }
+        } catch (error) {
+          console.warn('⚠️ Could not parse auth data for challan records fetch');
+        }
+      }
+
+      console.log('🔐 Request headers:', headers);
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: headers
+      });
 
       console.log('📥 Response status:', response.status, response.statusText);
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ API Error response:', errorText);
+        console.error('❌ Response headers:', Object.fromEntries(response.headers.entries()));
+
+        // Check if it's an HTML error page
+        if (errorText.trim().toLowerCase().startsWith('<!doctype') ||
+            errorText.trim().toLowerCase().startsWith('<html')) {
+          throw new Error(`Backend returned HTML error page (${response.status}). The endpoint may not exist or authentication may be required.`);
+        }
+
         throw new Error(`Failed to fetch challan records: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
       console.log('✅ Challan records fetched:', data);
+      console.log('📊 Response data structure:', {
+        hasData: !!data?.data,
+        dataLength: data?.data?.length || 0,
+        totalRecords: data?.total || data?.count || 'unknown'
+      });
       setChallanData(data);
     } catch (err: any) {
       setError(err.message);
