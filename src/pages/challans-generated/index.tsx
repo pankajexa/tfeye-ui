@@ -21,13 +21,42 @@ const ChallansGenerated: React.FC = () => {
       setError(null);
 
       const backendUrl = process.env.VITE_BACKEND_API_URL || 'http://localhost:3001';
-      const apiUrl = `${backendUrl}/api/challan/records?limit=50&offset=0`;
+      // Check for challan generation records endpoint
+      const challanRecordsUrl = `${backendUrl}/api/challan/records?limit=50&offset=0`;
+
+      // Try multiple possible endpoints
+      const possibleUrls = [
+        challanRecordsUrl,
+        `${backendUrl}/api/challan-generation-records?limit=50&offset=0`,
+        `${backendUrl}/api/generated-challans?limit=50&offset=0`,
+        `${backendUrl}/api/analyses?limit=50&offset=0&status=approved`
+      ];
+
+      let response = null;
+      let apiUrl = challanRecordsUrl;
+
+      // Try each endpoint until one works
+      for (const url of possibleUrls) {
+        try {
+          console.log('🌐 Trying endpoint:', url);
+          const fetchResponse = await fetch(url);
+          if (fetchResponse.ok) {
+            response = fetchResponse;
+            apiUrl = url;
+            console.log('✅ Found working endpoint:', url);
+            break;
+          }
+        } catch (err) {
+          console.log('❌ Endpoint failed:', url, err);
+        }
+      }
+
+      if (!response) {
+        throw new Error('No working endpoint found for fetching challan records');
+      }
 
       console.log('🌐 Environment VITE_BACKEND_API_URL:', process.env.VITE_BACKEND_API_URL);
-
-      console.log('🌐 Fetching challan records from:', apiUrl);
-
-      const response = await fetch(apiUrl);
+      console.log('🌐 Successfully connected to endpoint:', apiUrl);
 
       console.log('📥 Response status:', response.status, response.statusText);
 
@@ -135,8 +164,20 @@ const ChallansGenerated: React.FC = () => {
       <div className="p-8 text-center">
         <AlertCircle className="mx-auto h-12 w-12 text-red-400 mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Challans</h3>
-        <p className="text-gray-500 mb-4">{error}</p>
-        <Button onClick={fetchChallanRecords}>Try Again</Button>
+        <p className="text-gray-500 mb-4">
+          {error.includes('Failed to fetch') ?
+            'Unable to connect to the backend server. Please check your internet connection and try again.' :
+            error
+          }
+        </p>
+        <div className="flex gap-2 justify-center">
+          <Button onClick={fetchChallanRecords} variant="outline">
+            Try Again
+          </Button>
+          <Button onClick={() => window.location.reload()}>
+            Refresh Page
+          </Button>
+        </div>
       </div>
     );
   }
