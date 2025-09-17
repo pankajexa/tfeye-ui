@@ -502,10 +502,36 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
           formData.append('img', imageFile);
 
           // Add challan data matching the expected format
+          // Convert violations to array format as expected by backend
+          let vioDataArray = [];
+          const vioData = prepareData?.data?.vio_data;
+          if (Array.isArray(vioData)) {
+            vioDataArray = vioData;
+          } else if (typeof vioData === 'string' && vioData.includes(',')) {
+            // Handle comma-separated string format
+            vioDataArray = vioData.split(',').map(code => code.trim()).filter(code => code);
+          } else if (vioData) {
+            // Single value
+            vioDataArray = [vioData.toString()];
+          } else {
+            // Default fallback
+            vioDataArray = ["1"];
+          }
+
+          // Format date as DD-MMM-YYYY HH:MM (e.g., 05-Sep-2024 16:15)
+          const now = new Date();
+          const day = now.getDate().toString().padStart(2, '0');
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const month = monthNames[now.getMonth()];
+          const year = now.getFullYear();
+          const hours = now.getHours().toString().padStart(2, '0');
+          const minutes = now.getMinutes().toString().padStart(2, '0');
+          const formattedDateTime = `${day}-${month}-${year} ${hours}:${minutes}`;
+
           const challanInfo = {
             vendorCode: "Squarebox",
-            offenceDtTime: new Date().toISOString().replace('T', ' ').substring(0, 16),
-            vioData: prepareData?.data?.vio_data || "1",
+            offenceDtTime: formattedDateTime, // Correct format: DD-MMM-YYYY HH:MM
+            vioData: vioDataArray, // Must be an array of violation codes
             capturedByCD: finalOfficerInfo.operatorCd,
             operatorCD: finalOfficerInfo.operatorCd,
             vehRemak: "N",
