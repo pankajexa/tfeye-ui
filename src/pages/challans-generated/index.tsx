@@ -21,42 +21,13 @@ const ChallansGenerated: React.FC = () => {
       setError(null);
 
       const backendUrl = process.env.VITE_BACKEND_API_URL || 'http://localhost:3001';
-      // Check for challan generation records endpoint
-      const challanRecordsUrl = `${backendUrl}/api/challan/records?limit=50&offset=0`;
-
-      // Try multiple possible endpoints
-      const possibleUrls = [
-        challanRecordsUrl,
-        `${backendUrl}/api/challan-generation-records?limit=50&offset=0`,
-        `${backendUrl}/api/generated-challans?limit=50&offset=0`,
-        `${backendUrl}/api/analyses?limit=50&offset=0&status=approved`
-      ];
-
-      let response = null;
-      let apiUrl = challanRecordsUrl;
-
-      // Try each endpoint until one works
-      for (const url of possibleUrls) {
-        try {
-          console.log('🌐 Trying endpoint:', url);
-          const fetchResponse = await fetch(url);
-          if (fetchResponse.ok) {
-            response = fetchResponse;
-            apiUrl = url;
-            console.log('✅ Found working endpoint:', url);
-            break;
-          }
-        } catch (err) {
-          console.log('❌ Endpoint failed:', url, err);
-        }
-      }
-
-      if (!response) {
-        throw new Error('No working endpoint found for fetching challan records');
-      }
+      // Use the specific endpoint for generated challans
+      const apiUrl = `${backendUrl}/api/challan/records?status=generated&limit=50&offset=0`;
 
       console.log('🌐 Environment VITE_BACKEND_API_URL:', process.env.VITE_BACKEND_API_URL);
-      console.log('🌐 Successfully connected to endpoint:', apiUrl);
+      console.log('🌐 Fetching challan records from:', apiUrl);
+
+      const response = await fetch(apiUrl);
 
       console.log('📥 Response status:', response.status, response.statusText);
 
