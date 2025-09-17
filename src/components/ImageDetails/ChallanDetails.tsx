@@ -492,14 +492,49 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         const formData = new FormData();
 
         try {
-          // Fetch image from S3 URL
-          const imageResponse = await fetch((activeChallana as any)?.image_s3_url);
-          if (!imageResponse.ok) {
-            throw new Error('Failed to fetch image from S3');
+          console.log('🔐 Getting presigned URL for image UUID:', (activeChallana as any)?.uuid);
+
+          // Get presigned URL from backend API
+          const presignedResponse = await fetch(`${backendUrl}/api/image/${(activeChallana as any)?.uuid}/presigned-url`);
+
+          if (presignedResponse.ok) {
+            const presignedData = await presignedResponse.json();
+            console.log('✅ Got presigned URL from backend');
+
+            // Fetch the actual image using presigned URL
+            const imageResponse = await fetch(presignedData.presignedUrl);
+            console.log('📥 Image fetch status:', imageResponse.status, imageResponse.statusText);
+            console.log('📋 Image content-type:', imageResponse.headers.get('content-type'));
+
+            if (imageResponse.ok) {
+              const imageBlob = await imageResponse.blob();
+              console.log('📊 Image blob size:', imageBlob.size, 'bytes');
+              console.log('📊 Image blob type:', imageBlob.type);
+
+              // Validate it's actually an image
+              if (imageBlob.size > 100 && (imageBlob.type.startsWith('image/') || imageResponse.headers.get('content-type')?.startsWith('image/'))) {
+                const imageFile = new File([imageBlob], 'violation_image.jpg', { type: 'image/jpeg' });
+                formData.append('img', imageFile);
+                console.log('✅ Valid image file added to FormData');
+              } else {
+                console.error('❌ Invalid image blob:', { size: imageBlob.size, type: imageBlob.type });
+                // Try to read as text to see what we got
+                try {
+                  const text = await imageBlob.text();
+                  console.error('❌ Blob content preview:', text.substring(0, 200));
+                } catch (e) {
+                  console.error('❌ Could not read blob as text');
+                }
+                throw new Error('Received invalid image data (likely HTML error page)');
+              }
+            } else {
+              console.error('❌ Failed to fetch image from presigned URL:', imageResponse.status);
+              throw new Error('Failed to fetch image from presigned URL');
+            }
+          } else {
+            console.error('❌ Failed to get presigned URL:', presignedResponse.status);
+            throw new Error('Failed to get presigned URL from backend');
           }
-          const imageBlob = await imageResponse.blob();
-          const imageFile = new File([imageBlob], 'violation_image.jpg', { type: 'image/jpeg' });
-          formData.append('img', imageFile);
 
           // Add challan data matching the expected format
           // Convert violations to array format as expected by backend
