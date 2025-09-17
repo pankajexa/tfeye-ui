@@ -215,22 +215,39 @@ const ChallansGenerated: React.FC = () => {
       header: "Violations",
       cell: ({ row }) => (
         <div className="space-x-1 flex flex-wrap">
-          {Array.isArray(row?.original?.vio_data) ? (
-            row.original.vio_data.slice(0, 2).map((vio, index) => (
-              <Badge key={index} className="text-xs">
-                {typeof vio === 'string' ? vio : `V${vio}`}
+          {(() => {
+            let violationCodes = [];
+
+            if (typeof row?.original?.vio_data === 'string' && row.original.vio_data.includes(',')) {
+              // vio_data is stored as comma-separated string (e.g., "1,2,3")
+              violationCodes = row.original.vio_data.split(',').map(code => code.trim()).filter(code => code);
+            } else if (Array.isArray(row?.original?.vio_data)) {
+              // Fallback for old format
+              violationCodes = row.original.vio_data;
+            } else if (row?.original?.vio_data) {
+              // Single value
+              violationCodes = [row.original.vio_data.toString()];
+            }
+
+            return violationCodes.length > 0 ? (
+              <>
+                {violationCodes.slice(0, 2).map((vio, index) => (
+                  <Badge key={index} className="text-xs">
+                    {typeof vio === 'string' ? vio : `V${vio}`}
+                  </Badge>
+                ))}
+                {violationCodes.length > 2 && (
+                  <Badge className="text-xs bg-gray-100 text-gray-600">
+                    +{violationCodes.length - 2}
+                  </Badge>
+                )}
+              </>
+            ) : (
+              <Badge className="text-xs">
+                N/A
               </Badge>
-            ))
-          ) : (
-            <Badge className="text-xs">
-              {row?.original?.vio_data || "N/A"}
-            </Badge>
-          )}
-          {Array.isArray(row?.original?.vio_data) && row.original.vio_data.length > 2 && (
-            <Badge className="text-xs bg-gray-100 text-gray-600">
-              +{row.original.vio_data.length - 2}
-            </Badge>
-          )}
+            );
+          })()}
         </div>
       ),
     },
