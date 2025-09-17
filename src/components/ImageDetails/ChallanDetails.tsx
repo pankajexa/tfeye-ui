@@ -584,51 +584,47 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             return formattedDateTime; // Fallback to current time only if no offence time
           })();
 
+          // Use data from the prepared challan data (prepareData.data) which has all the correct values
+          const preparedChallan = prepareData?.data;
+          
           const challanInfo = {
             vendorCode: "Squarebox",
             offenceDtTime: offenceDtTime,
             vioData: vioDataArray,
-            // Use actual captured officer ID from analysis data
-            capturedByCD: (activeChallana as any)?.image_captured_by_officer_id || (activeChallana as any)?.captured_by_cd,
-            operatorCD: finalOfficerInfo.operatorCd,
+            // Use data from prepared challan record (which has correct values)
+            capturedByCD: preparedChallan?.captured_by_cd,
+            operatorCD: preparedChallan?.operator_cd || finalOfficerInfo.operatorCd,
             vehRemak: "N",
-            // Use actual GPS coordinates from analysis data
-            gpsLatti: (activeChallana as any)?.offence_latitude?.toString() || (activeChallana as any)?.latitude?.toString(),
-            gpsLong: (activeChallana as any)?.offence_longitude?.toString() || (activeChallana as any)?.longitude?.toString(),
-            gpsLocation: (activeChallana as any)?.location,
-            vehicleNo: ((activeChallana as any)?.modified_vehicle_details?.registrationNumber ||
-                      (activeChallana as any)?.parameter_analysis?.rta_data_used?.registrationNumber ||
-                      (activeChallana as any)?.license_plate_number ||
-                      activeChallana?.plateNumber || "").toUpperCase(),
-            // Use actual point code from analysis data
-            pointCD: (activeChallana as any)?.point_cd,
+            // Use GPS data from prepared challan record
+            gpsLatti: preparedChallan?.gps_latti?.toString(),
+            gpsLong: preparedChallan?.gps_long?.toString(),
+            gpsLocation: preparedChallan?.gps_location,
+            vehicleNo: (preparedChallan?.vehicle_no || preparedChallan?.modified_license_plate || "").toUpperCase(),
+            // Use point code from prepared challan record
+            pointCD: preparedChallan?.point_cd,
             appName: "SQBX"
           };
 
           // Add validation to ensure required fields are present
           console.log('🔍 FRONTEND: Validating challan data...');
-          console.log('📊 FRONTEND: FULL activeChallana object:', JSON.stringify(activeChallana, null, 2));
-          console.log('📊 FRONTEND: activeChallana data available:', {
-            hasImageCapturedBy: !!(activeChallana as any)?.image_captured_by_officer_id,
-            imageCapturedByValue: (activeChallana as any)?.image_captured_by_officer_id,
-            hasCapturedBy: !!(activeChallana as any)?.captured_by_cd,
-            capturedByValue: (activeChallana as any)?.captured_by_cd,
-            hasOffenceLatitude: !!(activeChallana as any)?.offence_latitude,
-            offenceLatitudeValue: (activeChallana as any)?.offence_latitude,
-            hasLatitude: !!(activeChallana as any)?.latitude,
-            latitudeValue: (activeChallana as any)?.latitude,
-            hasOffenceLongitude: !!(activeChallana as any)?.offence_longitude,
-            offenceLongitudeValue: (activeChallana as any)?.offence_longitude,
-            hasLongitude: !!(activeChallana as any)?.longitude,
-            longitudeValue: (activeChallana as any)?.longitude,
-            hasLocation: !!(activeChallana as any)?.location,
-            locationValue: (activeChallana as any)?.location,
-            hasPointCd: !!(activeChallana as any)?.point_cd,
-            pointCdValue: (activeChallana as any)?.point_cd,
-            hasOffenceDate: !!(activeChallana as any)?.offence_date,
-            offenceDateValue: (activeChallana as any)?.offence_date,
-            hasOffenceTime: !!(activeChallana as any)?.offence_time,
-            offenceTimeValue: (activeChallana as any)?.offence_time
+          console.log('📊 FRONTEND: preparedChallan data:', JSON.stringify(preparedChallan, null, 2));
+          console.log('📊 FRONTEND: preparedChallan data available:', {
+            hasCapturedBy: !!preparedChallan?.captured_by_cd,
+            capturedByValue: preparedChallan?.captured_by_cd,
+            hasOperatorCd: !!preparedChallan?.operator_cd,
+            operatorCdValue: preparedChallan?.operator_cd,
+            hasGpsLatti: !!preparedChallan?.gps_latti,
+            gpsLattiValue: preparedChallan?.gps_latti,
+            hasGpsLong: !!preparedChallan?.gps_long,
+            gpsLongValue: preparedChallan?.gps_long,
+            hasGpsLocation: !!preparedChallan?.gps_location,
+            gpsLocationValue: preparedChallan?.gps_location,
+            hasPointCd: !!preparedChallan?.point_cd,
+            pointCdValue: preparedChallan?.point_cd,
+            hasVehicleNo: !!preparedChallan?.vehicle_no,
+            vehicleNoValue: preparedChallan?.vehicle_no,
+            hasAppName: !!preparedChallan?.app_name,
+            appNameValue: preparedChallan?.app_name
           });
 
           if (!challanInfo.capturedByCD) {
@@ -667,7 +663,17 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             return;
           }
 
-          console.log('📤 FRONTEND: Sending real challan data:', JSON.stringify(challanInfo, null, 2));
+          console.log('📤 FRONTEND: Final challanInfo being sent:', JSON.stringify(challanInfo, null, 2));
+          console.log('🔍 FRONTEND: Final challanInfo validation check:', {
+            capturedByCD: challanInfo.capturedByCD,
+            operatorCD: challanInfo.operatorCD,
+            gpsLatti: challanInfo.gpsLatti,
+            gpsLong: challanInfo.gpsLong,
+            gpsLocation: challanInfo.gpsLocation,
+            vehicleNo: challanInfo.vehicleNo,
+            pointCD: challanInfo.pointCD,
+            appName: challanInfo.appName
+          });
           formData.append('challanInfo', JSON.stringify(challanInfo));
 
           // Call the correct endpoint with FormData
