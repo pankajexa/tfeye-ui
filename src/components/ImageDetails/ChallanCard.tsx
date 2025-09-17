@@ -235,7 +235,7 @@ const ChallanCard = ({
   };
 
   const fields = [
-    { key: "make_brand", label: "Make" },
+    { key: "make_brand", label: "Make", modifiedKey: "make" },
     { key: "model", label: "Model" },
     { key: "color", label: "Color" },
     { key: "vehicle_type", label: "Vehicle Type" },
@@ -459,7 +459,7 @@ const ChallanCard = ({
                     </tr>
                   </thead>
                   <tbody className="space-y-3 text-gray-600">
-                    {fields?.map(({ key, label }) => {
+                    {fields?.map(({ key, label, modifiedKey }) => {
                       const analysis = (challan as any)?.parameter_analysis
                         ?.comparison_result?.parameter_analysis?.[key];
                       const modified = (challan as any)
@@ -469,11 +469,11 @@ const ChallanCard = ({
                       let detectedValue: any;
 
                       if (modified) {
-                        // Always prefer modified values
-                        rtaValue = modified[key] ?? "N/A";
-                        detectedValue = "N/A";
+                        // Use modifiedKey if provided, else fallback to key
+                        const lookupKey = modifiedKey ?? key;
+                        rtaValue = modified[lookupKey] ?? "N/A";
+                        detectedValue = analysis?.ai ?? "N/A";
                       } else {
-                        // Fall back to analysis
                         rtaValue = analysis?.rta ?? "N/A";
                         detectedValue = analysis?.ai ?? "N/A";
                       }
