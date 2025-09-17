@@ -20,7 +20,7 @@ const ChallansGenerated: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const backendUrl = process.env.VITE_BACKEND_API_URL || 'http://localhost:3001';
+      const backendUrl = process.env.VITE_BACKEND_API_URL;
       // Use the specific endpoint for generated challans
       const apiUrl = `${backendUrl}/api/challan/records?status=generated&limit=50&offset=0`;
 
