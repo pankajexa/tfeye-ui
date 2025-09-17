@@ -563,23 +563,111 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
           const minutes = now.getMinutes().toString().padStart(2, '0');
           const formattedDateTime = `${day}-${month}-${year} ${hours}:${minutes}`;
 
+          // Use actual offence date/time from analysis, not current time
+          const offenceDtTime = (() => {
+            if ((activeChallana as any)?.offence_date && (activeChallana as any)?.offence_time) {
+              const date = new Date((activeChallana as any).offence_date);
+              const day = String(date.getDate()).padStart(2, '0');
+              const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+              const month = monthNames[date.getMonth()];
+              const year = date.getFullYear();
+              
+              // Format time properly
+              let time = (activeChallana as any).offence_time;
+              if (time && time.includes(':')) {
+                const [hours, minutes] = time.split(':');
+                time = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+              }
+              
+              return `${day}-${month}-${year} ${time}`;
+            }
+            return formattedDateTime; // Fallback to current time only if no offence time
+          })();
+
           const challanInfo = {
             vendorCode: "Squarebox",
-            offenceDtTime: formattedDateTime, // Correct format: DD-MMM-YYYY HH:MM
-            vioData: vioDataArray, // Must be an array of violation codes
-            capturedByCD: finalOfficerInfo.operatorCd,
+            offenceDtTime: offenceDtTime,
+            vioData: vioDataArray,
+            // Use actual captured officer ID from analysis data
+            capturedByCD: (activeChallana as any)?.image_captured_by_officer_id || (activeChallana as any)?.captured_by_cd,
             operatorCD: finalOfficerInfo.operatorCd,
             vehRemak: "N",
-            gpsLatti: (activeChallana as any)?.gpsLatti || "17.41565980",
-            gpsLong: (activeChallana as any)?.gpsLong || "78.41276220",
-            gpsLocation: (activeChallana as any)?.gpsLocation || "Apollo Emergency Rd, Telangana 500096",
-            vehicleNo: (activeChallana as any)?.modified_vehicle_details?.registrationNumber ||
+            // Use actual GPS coordinates from analysis data
+            gpsLatti: (activeChallana as any)?.offence_latitude?.toString() || (activeChallana as any)?.latitude?.toString(),
+            gpsLong: (activeChallana as any)?.offence_longitude?.toString() || (activeChallana as any)?.longitude?.toString(),
+            gpsLocation: (activeChallana as any)?.location,
+            vehicleNo: ((activeChallana as any)?.modified_vehicle_details?.registrationNumber ||
                       (activeChallana as any)?.parameter_analysis?.rta_data_used?.registrationNumber ||
                       (activeChallana as any)?.license_plate_number ||
-                      activeChallana?.plateNumber,
-            pointCD: finalOfficerInfo.operatorCd.slice(0, 6), // Extract point code from operator CD
+                      activeChallana?.plateNumber || "").toUpperCase(),
+            // Use actual point code from analysis data
+            pointCD: (activeChallana as any)?.point_cd,
             appName: "SQBX"
           };
+
+          // Add validation to ensure required fields are present
+          console.log('🔍 FRONTEND: Validating challan data...');
+          console.log('📊 FRONTEND: FULL activeChallana object:', JSON.stringify(activeChallana, null, 2));
+          console.log('📊 FRONTEND: activeChallana data available:', {
+            hasImageCapturedBy: !!(activeChallana as any)?.image_captured_by_officer_id,
+            imageCapturedByValue: (activeChallana as any)?.image_captured_by_officer_id,
+            hasCapturedBy: !!(activeChallana as any)?.captured_by_cd,
+            capturedByValue: (activeChallana as any)?.captured_by_cd,
+            hasOffenceLatitude: !!(activeChallana as any)?.offence_latitude,
+            offenceLatitudeValue: (activeChallana as any)?.offence_latitude,
+            hasLatitude: !!(activeChallana as any)?.latitude,
+            latitudeValue: (activeChallana as any)?.latitude,
+            hasOffenceLongitude: !!(activeChallana as any)?.offence_longitude,
+            offenceLongitudeValue: (activeChallana as any)?.offence_longitude,
+            hasLongitude: !!(activeChallana as any)?.longitude,
+            longitudeValue: (activeChallana as any)?.longitude,
+            hasLocation: !!(activeChallana as any)?.location,
+            locationValue: (activeChallana as any)?.location,
+            hasPointCd: !!(activeChallana as any)?.point_cd,
+            pointCdValue: (activeChallana as any)?.point_cd,
+            hasOffenceDate: !!(activeChallana as any)?.offence_date,
+            offenceDateValue: (activeChallana as any)?.offence_date,
+            hasOffenceTime: !!(activeChallana as any)?.offence_time,
+            offenceTimeValue: (activeChallana as any)?.offence_time
+          });
+
+          if (!challanInfo.capturedByCD) {
+            showErrorToast({
+              heading: "Missing Officer Data",
+              description: "Captured officer information missing from analysis data.",
+              placement: "top-right",
+            });
+            return;
+          }
+
+          if (!challanInfo.gpsLatti || !challanInfo.gpsLong) {
+            showErrorToast({
+              heading: "Missing GPS Data", 
+              description: "GPS coordinates missing from analysis data.",
+              placement: "top-right",
+            });
+            return;
+          }
+
+          if (!challanInfo.gpsLocation) {
+            showErrorToast({
+              heading: "Missing Location",
+              description: "Location information missing from analysis data.",
+              placement: "top-right",
+            });
+            return;
+          }
+
+          if (!challanInfo.pointCD) {
+            showErrorToast({
+              heading: "Missing Point Code",
+              description: "Police point code missing from analysis data.",
+              placement: "top-right",
+            });
+            return;
+          }
+
+          console.log('📤 FRONTEND: Sending real challan data:', JSON.stringify(challanInfo, null, 2));
           formData.append('challanInfo', JSON.stringify(challanInfo));
 
           // Call the correct endpoint with FormData
