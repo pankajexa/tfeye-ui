@@ -171,14 +171,14 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         // Handle authentication errors silently, show modal with empty state
         if (result.error === "Authentication required") {
           setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
-        } else {
-          showErrorToast({
-            heading: "No Previous Challans",
+      } else {
+        showErrorToast({
+          heading: "No Previous Challans",
             description: "No previous challans found for this vehicle.",
-            placement: "top-right",
-          });
-          // Still show modal with empty state for better UX
-          setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
+          placement: "top-right",
+        });
+        // Still show modal with empty state for better UX
+        setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
         }
       }
     } catch (error) {
@@ -584,8 +584,8 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             return formattedDateTime; // Fallback to current time only if no offence time
           })();
 
-          // Use data from the prepared challan data (prepareData.data) which has all the correct values
-          const preparedChallan = prepareData?.data;
+          // Use data from the prepared challan data (prepareData.challanData) which has all the correct values
+          const preparedChallan = prepareData?.challanData;
           
           const challanInfo = {
             vendorCode: "Squarebox",
@@ -596,8 +596,8 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             operatorCD: preparedChallan?.operator_cd || finalOfficerInfo.operatorCd,
             vehRemak: "N",
             // Use GPS data from prepared challan record
-            gpsLatti: preparedChallan?.gps_latti?.toString(),
-            gpsLong: preparedChallan?.gps_long?.toString(),
+            gpsLatti: preparedChallan?.gps_latti ? String(preparedChallan.gps_latti) : undefined,
+            gpsLong: preparedChallan?.gps_long ? String(preparedChallan.gps_long) : undefined,
             gpsLocation: preparedChallan?.gps_location,
             vehicleNo: (preparedChallan?.vehicle_no || preparedChallan?.modified_license_plate || "").toUpperCase(),
             // Use point code from prepared challan record
@@ -607,6 +607,7 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
 
           // Add validation to ensure required fields are present
           console.log('🔍 FRONTEND: Validating challan data...');
+          console.log('🔍 FRONTEND: challanInfo constructed:', JSON.stringify(challanInfo, null, 2));
           console.log('📊 FRONTEND: preparedChallan data:', JSON.stringify(preparedChallan, null, 2));
           console.log('📊 FRONTEND: preparedChallan data available:', {
             hasCapturedBy: !!preparedChallan?.captured_by_cd,
@@ -693,7 +694,7 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
                 placement: "top-right",
               });
             } else {
-              const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({}));
               console.error('❌ Challan generation failed:', errorData);
               showErrorToast({
                 heading: "Generation Failed",
