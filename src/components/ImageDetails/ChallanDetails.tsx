@@ -201,23 +201,15 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       } else {
         // Handle authentication errors silently, show modal with empty state
         if (result.error === "Authentication required") {
-          setPreviousChallans({
-            responseCode: "0",
-            responseDesc: "No data",
-            data: null,
-          });
-        } else {
-          showErrorToast({
-            heading: "No Previous Challans",
+          setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
+      } else {
+        showErrorToast({
+          heading: "No Previous Challans",
             description: "No previous challans found for this vehicle.",
-            placement: "top-right",
-          });
-          // Still show modal with empty state for better UX
-          setPreviousChallans({
-            responseCode: "0",
-            responseDesc: "No data",
-            data: null,
-          });
+          placement: "top-right",
+        });
+        // Still show modal with empty state for better UX
+        setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
         }
       }
     } catch (error) {
@@ -561,18 +553,49 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         const formData = new FormData();
 
         try {
-          // Fetch image from S3 URL
-          const imageResponse = await fetch(
-            (activeChallana as any)?.image_s3_url
-          );
-          if (!imageResponse.ok) {
-            throw new Error("Failed to fetch image from S3");
+          console.log('🔐 Getting presigned URL for image UUID:', (activeChallana as any)?.uuid);
+
+          // Get presigned URL from backend API
+          const presignedResponse = await fetch(`${backendUrl}/api/image/${(activeChallana as any)?.uuid}/presigned-url`);
+
+          if (presignedResponse.ok) {
+            const presignedData = await presignedResponse.json();
+            console.log('✅ Got presigned URL from backend');
+
+            // Fetch the actual image using presigned URL
+            const imageResponse = await fetch(presignedData.presignedUrl);
+            console.log('📥 Image fetch status:', imageResponse.status, imageResponse.statusText);
+            console.log('📋 Image content-type:', imageResponse.headers.get('content-type'));
+
+            if (imageResponse.ok) {
+              const imageBlob = await imageResponse.blob();
+              console.log('📊 Image blob size:', imageBlob.size, 'bytes');
+              console.log('📊 Image blob type:', imageBlob.type);
+
+              // Validate it's actually an image
+              if (imageBlob.size > 100 && (imageBlob.type.startsWith('image/') || imageResponse.headers.get('content-type')?.startsWith('image/'))) {
+                const imageFile = new File([imageBlob], 'violation_image.jpg', { type: 'image/jpeg' });
+                formData.append('img', imageFile);
+                console.log('✅ Valid image file added to FormData');
+              } else {
+                console.error('❌ Invalid image blob:', { size: imageBlob.size, type: imageBlob.type });
+                // Try to read as text to see what we got
+                try {
+                  const text = await imageBlob.text();
+                  console.error('❌ Blob content preview:', text.substring(0, 200));
+                } catch (e) {
+                  console.error('❌ Could not read blob as text');
+                }
+                throw new Error('Received invalid image data (likely HTML error page)');
+              }
+            } else {
+              console.error('❌ Failed to fetch image from presigned URL:', imageResponse.status);
+              throw new Error('Failed to fetch image from presigned URL');
+            }
+          } else {
+            console.error('❌ Failed to get presigned URL:', presignedResponse.status);
+            throw new Error('Failed to get presigned URL from backend');
           }
-          const imageBlob = await imageResponse.blob();
-          const imageFile = new File([imageBlob], "violation_image.jpg", {
-            type: "image/jpeg",
-          });
-          formData.append("img", imageFile);
 
           // Add challan data matching the expected format
           // Convert violations to array format as expected by backend
@@ -617,29 +640,119 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
           const minutes = now.getMinutes().toString().padStart(2, "0");
           const formattedDateTime = `${day}-${month}-${year} ${hours}:${minutes}`;
 
+          // Use actual offence date/time from analysis, not current time
+          const offenceDtTime = (() => {
+            if ((activeChallana as any)?.offence_date && (activeChallana as any)?.offence_time) {
+              const date = new Date((activeChallana as any).offence_date);
+              const day = String(date.getDate()).padStart(2, '0');
+              const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+              const month = monthNames[date.getMonth()];
+              const year = date.getFullYear();
+              
+              // Format time properly
+              let time = (activeChallana as any).offence_time;
+              if (time && time.includes(':')) {
+                const [hours, minutes] = time.split(':');
+                time = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+              }
+              
+              return `${day}-${month}-${year} ${time}`;
+            }
+            return formattedDateTime; // Fallback to current time only if no offence time
+          })();
+
+          // Use data from the prepared challan data (prepareData.challanData) which has all the correct values
+          const preparedChallan = prepareData?.challanData;
+          
           const challanInfo = {
             vendorCode: "Squarebox",
-            offenceDtTime: formattedDateTime, // Correct format: DD-MMM-YYYY HH:MM
-            vioData: vioDataArray, // Must be an array of violation codes
-            capturedByCD: finalOfficerInfo.operatorCd,
-            operatorCD: finalOfficerInfo.operatorCd,
+            offenceDtTime: offenceDtTime,
+            vioData: vioDataArray,
+            // Use data from prepared challan record (which has correct values)
+            capturedByCD: preparedChallan?.captured_by_cd,
+            operatorCD: preparedChallan?.operator_cd || finalOfficerInfo.operatorCd,
             vehRemak: "N",
-            gpsLatti: (activeChallana as any)?.gpsLatti || "17.41565980",
-            gpsLong: (activeChallana as any)?.gpsLong || "78.41276220",
-            gpsLocation:
-              (activeChallana as any)?.gpsLocation ||
-              "Apollo Emergency Rd, Telangana 500096",
-            vehicleNo:
-              (activeChallana as any)?.modified_vehicle_details
-                ?.registrationNumber ||
-              (activeChallana as any)?.parameter_analysis?.rta_data_used
-                ?.registrationNumber ||
-              (activeChallana as any)?.license_plate_number ||
-              activeChallana?.plateNumber,
-            pointCD: finalOfficerInfo.operatorCd.slice(0, 6), // Extract point code from operator CD
-            appName: "SQBX",
+            // Use GPS data from prepared challan record
+            gpsLatti: preparedChallan?.gps_latti ? String(preparedChallan.gps_latti) : undefined,
+            gpsLong: preparedChallan?.gps_long ? String(preparedChallan.gps_long) : undefined,
+            gpsLocation: preparedChallan?.gps_location,
+            vehicleNo: (preparedChallan?.vehicle_no || preparedChallan?.modified_license_plate || "").toUpperCase(),
+            // Use point code from prepared challan record
+            pointCD: preparedChallan?.point_cd,
+            appName: "SQBX"
           };
-          formData.append("challanInfo", JSON.stringify(challanInfo));
+
+          // Add validation to ensure required fields are present
+          console.log('🔍 FRONTEND: Validating challan data...');
+          console.log('🔍 FRONTEND: challanInfo constructed:', JSON.stringify(challanInfo, null, 2));
+          console.log('📊 FRONTEND: preparedChallan data:', JSON.stringify(preparedChallan, null, 2));
+          console.log('📊 FRONTEND: preparedChallan data available:', {
+            hasCapturedBy: !!preparedChallan?.captured_by_cd,
+            capturedByValue: preparedChallan?.captured_by_cd,
+            hasOperatorCd: !!preparedChallan?.operator_cd,
+            operatorCdValue: preparedChallan?.operator_cd,
+            hasGpsLatti: !!preparedChallan?.gps_latti,
+            gpsLattiValue: preparedChallan?.gps_latti,
+            hasGpsLong: !!preparedChallan?.gps_long,
+            gpsLongValue: preparedChallan?.gps_long,
+            hasGpsLocation: !!preparedChallan?.gps_location,
+            gpsLocationValue: preparedChallan?.gps_location,
+            hasPointCd: !!preparedChallan?.point_cd,
+            pointCdValue: preparedChallan?.point_cd,
+            hasVehicleNo: !!preparedChallan?.vehicle_no,
+            vehicleNoValue: preparedChallan?.vehicle_no,
+            hasAppName: !!preparedChallan?.app_name,
+            appNameValue: preparedChallan?.app_name
+          });
+
+          if (!challanInfo.capturedByCD) {
+            showErrorToast({
+              heading: "Missing Officer Data",
+              description: "Captured officer information missing from analysis data.",
+              placement: "top-right",
+            });
+            return;
+          }
+
+          if (!challanInfo.gpsLatti || !challanInfo.gpsLong) {
+            showErrorToast({
+              heading: "Missing GPS Data", 
+              description: "GPS coordinates missing from analysis data.",
+              placement: "top-right",
+            });
+            return;
+          }
+
+          if (!challanInfo.gpsLocation) {
+            showErrorToast({
+              heading: "Missing Location",
+              description: "Location information missing from analysis data.",
+              placement: "top-right",
+            });
+            return;
+          }
+
+          if (!challanInfo.pointCD) {
+            showErrorToast({
+              heading: "Missing Point Code",
+              description: "Police point code missing from analysis data.",
+              placement: "top-right",
+            });
+            return;
+          }
+
+          console.log('📤 FRONTEND: Final challanInfo being sent:', JSON.stringify(challanInfo, null, 2));
+          console.log('🔍 FRONTEND: Final challanInfo validation check:', {
+            capturedByCD: challanInfo.capturedByCD,
+            operatorCD: challanInfo.operatorCD,
+            gpsLatti: challanInfo.gpsLatti,
+            gpsLong: challanInfo.gpsLong,
+            gpsLocation: challanInfo.gpsLocation,
+            vehicleNo: challanInfo.vehicleNo,
+            pointCD: challanInfo.pointCD,
+            appName: challanInfo.appName
+          });
+          formData.append('challanInfo', JSON.stringify(challanInfo));
 
           // Call the correct endpoint with FormData
           fetch(`${backendUrl}/api/generate-challan`, {
@@ -647,39 +760,27 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             headers: {
               Authorization: `Bearer ${operatorToken}`,
             },
-            body: formData,
-          })
-            .then(async (response) => {
-              if (response.ok) {
-                const result = await response.json();
-                console.log("✅ Challan generation completed:", result);
-                showSuccessToast({
-                  heading: "Challan Generated",
-                  description:
-                    "Challan has been successfully generated with image file.",
-                  placement: "top-right",
-                });
-              } else {
-                const errorData = await response.json().catch(() => ({}));
-                console.error("❌ Challan generation failed:", errorData);
-                showErrorToast({
-                  heading: "Generation Failed",
-                  description:
-                    errorData.error ||
-                    "Challan generation failed. Please try again.",
-                  placement: "top-right",
-                });
-              }
-            })
-            .catch((error) => {
-              console.error("❌ Background challan generation error:", error);
+            body: formData
+          }).then(async (response) => {
+            if (response.ok) {
+              const result = await response.json();
+              console.log('✅ Challan generation completed:', result);
+              showSuccessToast({
+                heading: "Challan Generated",
+                description: "Challan has been successfully generated with image file.",
+                placement: "top-right",
+              });
+            } 
+            else {
+        const errorData = await response.json().catch(() => ({}));
+              console.error('❌ Challan generation failed:', errorData);
               showErrorToast({
                 heading: "Generation Error",
                 description:
                   "Failed to generate challan. Please check your connection and try again.",
                 placement: "top-right",
               });
-            });
+            }})
         } catch (imageError) {
           console.error(
             "❌ Failed to fetch image for challan generation:",
