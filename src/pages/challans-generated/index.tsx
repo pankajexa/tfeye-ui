@@ -27,7 +27,14 @@ const ChallansGenerated: React.FC = () => {
       const apiUrl = `${backendUrl}/api/challan/records?status=generated&limit=50&offset=0`;
 
       console.log('🌐 Environment VITE_BACKEND_API_URL:', import.meta.env.VITE_BACKEND_API_URL);
+      console.log('🌐 BACKEND_URL constant:', BACKEND_URL);
       console.log('🌐 Fetching challan records from:', apiUrl);
+      console.log('🔍 Full URL breakdown:', {
+        backendUrl: backendUrl,
+        endpoint: '/api/challan/records',
+        params: 'status=generated&limit=50&offset=0',
+        fullUrl: apiUrl
+      });
 
       // Add authentication headers if needed
       const authData = localStorage.getItem('traffic_challan_auth');
@@ -47,6 +54,22 @@ const ChallansGenerated: React.FC = () => {
 
       console.log('🔐 Request headers:', headers);
 
+      // Test basic connectivity first
+      console.log('🔍 Testing basic connectivity to backend...');
+      
+      try {
+        // First try a simple health check or known endpoint
+        const healthCheck = await fetch(`${backendUrl}/health`, {
+          method: 'GET',
+          headers: headers
+        });
+        console.log('💓 Health check response:', healthCheck.status, healthCheck.statusText);
+      } catch (healthError) {
+        console.error('💔 Health check failed:', healthError);
+        throw new Error(`Cannot connect to backend server at ${backendUrl}. Please verify the server is running and accessible.`);
+      }
+
+      console.log('📡 Making actual challan records request...');
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: headers
@@ -77,8 +100,19 @@ const ChallansGenerated: React.FC = () => {
       });
       setChallanData(data);
     } catch (err: any) {
-      setError(err.message);
-      console.error('Error fetching challan records:', err);
+      console.error('❌ Challan records fetch error:', err);
+      console.error('❌ Error name:', err.name);
+      console.error('❌ Error message:', err.message);
+      console.error('❌ Error stack:', err.stack);
+      
+      // Check if it's a network error
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        setError('Network error: Unable to connect to the backend server. Please check if the backend is running and accessible.');
+      } else if (err.message.includes('Failed to fetch')) {
+        setError('Connection failed: Backend server is not responding. Please verify the backend URL and server status.');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
