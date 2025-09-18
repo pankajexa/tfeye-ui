@@ -507,6 +507,10 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         modificationReason: "Officer review completed via UI",
       };
 
+      console.log('🔍 FRONTEND: violations state:', violations);
+      console.log('🔍 FRONTEND: violations state length:', violations.length);
+      console.log('🔍 FRONTEND: activeChallana violation_types:', (activeChallana as any)?.violation_types);
+      console.log('🔍 FRONTEND: activeChallana vio_data:', (activeChallana as any)?.vio_data);
       console.log(
         "📤 Prepare payload:",
         JSON.stringify(preparePayload, null, 2)
