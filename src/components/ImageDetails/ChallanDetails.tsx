@@ -600,21 +600,45 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
           // Add challan data matching the expected format
           // Convert violations to array format as expected by backend
           let vioDataArray = [];
-          const vioData = prepareData?.data?.vio_data;
+          const vioData = preparedChallan?.vio_data;
+          console.log('🔍 FRONTEND: Raw vio_data from preparedChallan:', vioData);
+          console.log('🔍 FRONTEND: vio_data type:', typeof vioData);
+          console.log('🔍 FRONTEND: vio_data isArray:', Array.isArray(vioData));
           if (Array.isArray(vioData)) {
-            vioDataArray = vioData;
+            // Ensure zero-padding for array elements
+            vioDataArray = vioData.map(code => {
+              const codeStr = code.toString().trim();
+              if (codeStr.length === 1 && /^\d$/.test(codeStr)) {
+                console.log('🔍 FRONTEND: Padding single digit code:', codeStr, '→', `0${codeStr}`);
+                return `0${codeStr}`;
+              }
+              return codeStr;
+            });
           } else if (typeof vioData === "string" && vioData.includes(",")) {
             // Handle comma-separated string format
             vioDataArray = vioData
               .split(",")
-              .map((code) => code.trim())
+              .map((code) => {
+                const trimmedCode = code.trim();
+                if (trimmedCode.length === 1 && /^\d$/.test(trimmedCode)) {
+                  console.log('🔍 FRONTEND: Padding comma-separated code:', trimmedCode, '→', `0${trimmedCode}`);
+                  return `0${trimmedCode}`;
+                }
+                return trimmedCode;
+              })
               .filter((code) => code);
           } else if (vioData) {
-            // Single value
-            vioDataArray = [vioData.toString()];
+            // Single value - pad if needed
+            const singleCode = vioData.toString().trim();
+            if (singleCode.length === 1 && /^\d$/.test(singleCode)) {
+              console.log('🔍 FRONTEND: Padding single value code:', singleCode, '→', `0${singleCode}`);
+              vioDataArray = [`0${singleCode}`];
+            } else {
+              vioDataArray = [singleCode];
+            }
           } else {
-            // Default fallback
-            vioDataArray = ["1"];
+            // Default fallback - use zero-padded code
+            vioDataArray = ["01"];
           }
 
           // Format date as DD-MMM-YYYY HH:MM (e.g., 05-Sep-2024 16:15)
@@ -684,6 +708,7 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
 
           // Add validation to ensure required fields are present
           console.log('🔍 FRONTEND: Validating challan data...');
+          console.log('🔍 FRONTEND: Final vioDataArray being used:', vioDataArray);
           console.log('🔍 FRONTEND: challanInfo constructed:', JSON.stringify(challanInfo, null, 2));
           console.log('📊 FRONTEND: preparedChallan data:', JSON.stringify(preparedChallan, null, 2));
           console.log('📊 FRONTEND: preparedChallan data available:', {
