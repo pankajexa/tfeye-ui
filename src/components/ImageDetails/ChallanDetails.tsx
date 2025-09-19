@@ -426,6 +426,10 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
 
       console.log("👤 Current Officer Info:", currentOfficer);
       console.log("🔐 Authentication Status:", !!currentOfficer);
+      console.log("🔍 Current Officer Fields:", currentOfficer ? Object.keys(currentOfficer) : 'No officer');
+      console.log("🔍 Current Officer operatorCd:", (currentOfficer as any)?.operatorCd);
+      console.log("🔍 Current Officer operatorCD:", (currentOfficer as any)?.operatorCD);
+      console.log("🔍 Current Officer id:", currentOfficer?.id);
 
       // Get officer info (use currentOfficer or create with defaults)
       let officerInfo = currentOfficer;
@@ -434,25 +438,22 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         console.log(
           "🔄 No officer info available, creating mock officer for testing..."
         );
-        officerInfo = {
-          id: "TEST_OFFICER_001",
-          name: "Test Officer",
-          cadre: "Police Constable",
-          operatorCd: "23001007",
-        } as any;
+        // Don't create mock officer - throw error instead
+        throw new Error('No officer information available. Please ensure you are logged in properly.');
       } else {
-        // Ensure required fields exist, add defaults if missing
+        // Validate that we have real officer info - no defaults
+        if (!(officerInfo as any).operatorCd && !(officerInfo as any).operatorCD && !officerInfo.id) {
+          throw new Error('Missing operator code in officer information. Please ensure you are logged in with valid credentials.');
+        }
+        
+        // Use real officer info only
         officerInfo = {
-          id:
-            officerInfo.id ||
-            (officerInfo as any).operatorCd ||
-            "TEST_OFFICER_001",
-          name: officerInfo.name || "Test Officer",
-          cadre: (officerInfo as any).cadre || "Police Constable",
-          operatorCd:
-            (officerInfo as any).operatorCd || officerInfo.id || "23001007",
+          id: officerInfo.id || (officerInfo as any).operatorCd || (officerInfo as any).operatorCD,
+          name: officerInfo.name || "Unknown Officer",
+          cadre: (officerInfo as any).cadre || "Unknown",
+          operatorCd: (officerInfo as any).operatorCd || (officerInfo as any).operatorCD || officerInfo.id,
         } as any;
-        console.log("✅ Enhanced officer info with defaults:", officerInfo);
+        console.log("✅ Using real officer info (no defaults):", officerInfo);
       }
 
       console.log("🚔 Starting challan generation process...");
@@ -483,11 +484,16 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         operatorCd:
           (officerInfo as any)?.operatorCd ||
           (officerInfo as any)?.operatorCD ||
-          officerInfo?.id ||
-          "23001007",
+          officerInfo?.id,
       };
 
       console.log("🔍 Final officer info to send:", finalOfficerInfo);
+      
+      // Validate that we have real officer info, not defaults
+      if (!finalOfficerInfo.operatorCd || finalOfficerInfo.operatorCd === "DEFAULT_OFFICER_ID" || finalOfficerInfo.operatorCd === "23001007") {
+        console.error('❌ Invalid officer info detected:', finalOfficerInfo);
+        throw new Error('Invalid officer information. Using hardcoded operator code instead of real logged-in officer. Please ensure you are logged in with proper credentials.');
+      }
 
       const preparePayload = {
         analysisUuid: (activeChallana as any)?.uuid,
