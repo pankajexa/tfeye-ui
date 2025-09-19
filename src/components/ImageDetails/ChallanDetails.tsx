@@ -483,7 +483,7 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       console.log("🔍 Final officer info to send:", finalOfficerInfo);
       
       // Validate that we have real officer info, not defaults
-      if (!finalOfficerInfo.operatorCd || finalOfficerInfo.operatorCd === "DEFAULT_OFFICER_ID" || finalOfficerInfo.operatorCd === "23001007") {
+      if (!finalOfficerInfo.operatorCd || finalOfficerInfo.operatorCd === "DEFAULT_OFFICER_ID" || finalOfficerInfo.operatorCd === "2308175957") {
         console.error('❌ Invalid officer info detected:', finalOfficerInfo);
         throw new Error('Invalid officer information. Using hardcoded operator code instead of real logged-in officer. Please ensure you are logged in with proper credentials.');
       }
@@ -721,6 +721,8 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
           console.log('🔍 FRONTEND: Final vioDataArray being used:', vioDataArray);
           console.log('🔍 FRONTEND: challanInfo constructed:', JSON.stringify(challanInfo, null, 2));
           console.log('📊 FRONTEND: preparedChallan data:', JSON.stringify(preparedChallan, null, 2));
+          console.log('🔍 FRONTEND: preparedChallan.operator_cd:', preparedChallan?.operator_cd);
+          console.log('🔍 FRONTEND: This should match the logged-in officer, not 23001007');
           console.log('📊 FRONTEND: preparedChallan data available:', {
             hasCapturedBy: !!preparedChallan?.captured_by_cd,
             capturedByValue: preparedChallan?.captured_by_cd,
