@@ -23,16 +23,16 @@ const ChallansGenerated: React.FC = () => {
 
       // Use consistent backend URL from constants
       const backendUrl = BACKEND_URL;
-      // Use the specific endpoint for generated challans
-      const apiUrl = `${backendUrl}/api/challan/records?status=generated&limit=50&offset=0`;
+      // Use the correct endpoint for generated challans from analyses API
+      const apiUrl = `${backendUrl}/api/v1/analyses?status=generated&items_per_page=50&page=1`;
 
       console.log('🌐 Environment VITE_BACKEND_API_URL:', import.meta.env.VITE_BACKEND_API_URL);
       console.log('🌐 BACKEND_URL constant:', BACKEND_URL);
       console.log('🌐 Fetching challan records from:', apiUrl);
       console.log('🔍 Full URL breakdown:', {
         backendUrl: backendUrl,
-        endpoint: '/api/challan/records',
-        params: 'status=generated&limit=50&offset=0',
+        endpoint: '/api/v1/analyses',
+        params: 'status=generated&items_per_page=50&page=1',
         fullUrl: apiUrl
       });
 
@@ -242,12 +242,12 @@ const ChallansGenerated: React.FC = () => {
 
   const columns = [
     {
-      accessorKey: "vehicle_no",
+      accessorKey: "license_plate_number",
       header: "Vehicle Number",
       cell: ({ row }) => (
         <div className="flex gap-3 items-center text-sm">
           <p className="font-medium text-gray-900">
-            {row?.original?.vehicle_no || row?.original?.original_license_plate || "N/A"}
+            {row?.original?.license_plate_number || row?.original?.original_license_plate || "N/A"}
           </p>
         </div>
       ),
@@ -262,11 +262,11 @@ const ChallansGenerated: React.FC = () => {
       ),
     },
     {
-      accessorKey: "reviewed_by_officer_name",
+      accessorKey: "image_captured_by_name",
       header: "Processed by",
       cell: ({ row }) => (
         <p className="text-sm text-gray-600 font-normal">
-          {row?.original?.reviewed_by_officer_name || "System"}
+          {row?.original?.reviewed_by_officer_name || row?.original?.image_captured_by_name || "System"}
         </p>
       ),
     },
@@ -284,11 +284,11 @@ const ChallansGenerated: React.FC = () => {
       ),
     },
     {
-      accessorKey: "gps_location",
+      accessorKey: "point_name",
       header: "Location",
       cell: ({ row }) => (
         <p className="text-sm text-gray-600 font-normal truncate max-w-32">
-          {row?.original?.gps_location || "N/A"}
+          {row?.original?.point_name || row?.original?.gps_location || "N/A"}
         </p>
       ),
     },
@@ -300,12 +300,12 @@ const ChallansGenerated: React.FC = () => {
           {(() => {
             let violationCodes = [];
 
-            if (typeof row?.original?.vio_data === 'string' && row.original.vio_data.includes(',')) {
-              // vio_data is stored as comma-separated string (e.g., "1,2,3")
+            if (Array.isArray(row?.original?.vio_data)) {
+              // New format: array of objects with detected_violation property
+              violationCodes = row.original.vio_data.map(vio => vio?.detected_violation || vio).filter(v => v);
+            } else if (typeof row?.original?.vio_data === 'string' && row.original.vio_data.includes(',')) {
+              // Legacy format: comma-separated string (e.g., "1,2,3")
               violationCodes = row.original.vio_data.split(',').map(code => code.trim()).filter(code => code);
-            } else if (Array.isArray(row?.original?.vio_data)) {
-              // Fallback for old format
-              violationCodes = row.original.vio_data;
             } else if (row?.original?.vio_data) {
               // Single value
               violationCodes = [row.original.vio_data.toString()];
@@ -346,7 +346,7 @@ const ChallansGenerated: React.FC = () => {
           <h2 className="text-lg flex items-center gap-1.5 text-gray-900 font-semibold">
             Challans Generated {" "}
             <Badge rounded="full" variant="purple">
-              {challanData?.data?.length || 0}
+              {challanData?.pagination?.total_count || challanData?.data?.length || 0}
             </Badge>
           </h2>
         </div>
@@ -359,7 +359,7 @@ const ChallansGenerated: React.FC = () => {
           itemsPerPage={50}
           onPageChange={() => {}} // No pagination for now
           tableHeight="h-[calc(100vh-174px)]"
-          totalRecords={challanData?.data?.length || 0}
+          totalRecords={challanData?.pagination?.total_count || challanData?.data?.length || 0}
         />
       </div>
     </div>
