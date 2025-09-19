@@ -446,12 +446,12 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
           throw new Error('Missing operator code in officer information. Please ensure you are logged in with valid credentials.');
         }
         
-        // Use real officer info only
+        // Use real officer info only - operatorCd is stored in the 'id' field
         officerInfo = {
-          id: officerInfo.id || (officerInfo as any).operatorCd || (officerInfo as any).operatorCD,
-          name: officerInfo.name || "Unknown Officer",
-          cadre: (officerInfo as any).cadre || "Unknown",
-          operatorCd: (officerInfo as any).operatorCd || (officerInfo as any).operatorCD || officerInfo.id,
+          id: officerInfo.id,  // This contains the real operatorCD from login
+          name: officerInfo.name || "Unknown Officer", 
+          cadre: (officerInfo as any).cadre || officerInfo.cadre || "Unknown",
+          operatorCd: officerInfo.id,  // The 'id' field contains the operatorCD
         } as any;
         console.log("✅ Using real officer info (no defaults):", officerInfo);
       }
@@ -474,17 +474,10 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
 
       // Ensure we have valid officer info
       const finalOfficerInfo = {
-        id:
-          officerInfo?.id ||
-          (officerInfo as any)?.operatorCd ||
-          (officerInfo as any)?.operatorCD ||
-          "DEFAULT_OFFICER_ID",
+        id: officerInfo?.id,  // Real operator code from login
         name: officerInfo?.name || "Unknown Officer",
         cadre: officerInfo?.cadre || "Unknown",
-        operatorCd:
-          (officerInfo as any)?.operatorCd ||
-          (officerInfo as any)?.operatorCD ||
-          officerInfo?.id,
+        operatorCd: officerInfo?.id,  // Use the 'id' field which contains the real operatorCD
       };
 
       console.log("🔍 Final officer info to send:", finalOfficerInfo);
@@ -548,9 +541,16 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       const authData = localStorage.getItem("traffic_challan_auth");
       let operatorToken = null;
 
+      console.log('🔍 FRONTEND: Raw auth data from localStorage:', authData);
+
       if (authData) {
         try {
           const parsed = JSON.parse(authData);
+          console.log('🔍 FRONTEND: Parsed auth data:', JSON.stringify(parsed, null, 2));
+          console.log('🔍 FRONTEND: currentOfficer from localStorage:', parsed.currentOfficer);
+          console.log('🔍 FRONTEND: operatorToken from localStorage:', parsed.operatorToken ? 'PRESENT' : 'MISSING');
+          console.log('🔍 FRONTEND: appSessionToken from localStorage:', parsed.appSessionToken ? 'PRESENT' : 'MISSING');
+          
           operatorToken = parsed.operatorToken || parsed.appSessionToken;
         } catch (error) {
           console.warn("⚠️ Could not parse auth data from localStorage");
