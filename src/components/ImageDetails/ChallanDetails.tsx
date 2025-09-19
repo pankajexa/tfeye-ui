@@ -427,9 +427,11 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       console.log("👤 Current Officer Info:", currentOfficer);
       console.log("🔐 Authentication Status:", !!currentOfficer);
       console.log("🔍 Current Officer Fields:", currentOfficer ? Object.keys(currentOfficer) : 'No officer');
-      console.log("🔍 Current Officer operatorCd:", (currentOfficer as any)?.operatorCd);
-      console.log("🔍 Current Officer operatorCD:", (currentOfficer as any)?.operatorCD);
-      console.log("🔍 Current Officer id:", currentOfficer?.id);
+      console.log("🔍 Current Officer operatorCd (NEW FIELD):", currentOfficer?.operatorCd);
+      console.log("🔍 Current Officer id (CONTAINS OPERATOR CODE):", currentOfficer?.id);
+      console.log("🔍 Current Officer name:", currentOfficer?.name);
+      console.log("🔍 Current Officer cadre:", currentOfficer?.cadre);
+      console.log("🔍 Current Officer psName:", currentOfficer?.psName);
 
       // Get officer info (use currentOfficer or create with defaults)
       let officerInfo = currentOfficer;
@@ -447,22 +449,24 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         } as any;
       } else {
         // Use real officer info if available, otherwise use hardcoded credentials
-        if (!(officerInfo as any).operatorCd && !(officerInfo as any).operatorCD && !officerInfo.id) {
+        if (!officerInfo.operatorCd && !officerInfo.id) {
           console.log('⚠️ No operator code found, using hardcoded credentials');
           officerInfo = {
             id: "2308175957",
             name: "A. Raju",
             cadre: "Police Constable", 
+            psName: "System PS",
             operatorCd: "2308175957",
-          } as any;
+          } as Officer;
         } else {
-          // Use real officer info - operatorCd is stored in the 'id' field
+          // Use real officer info - now operatorCd field exists in interface
           officerInfo = {
-            id: officerInfo.id,  // This contains the real operatorCD from login
+            id: officerInfo.id,
             name: officerInfo.name || "Unknown Officer", 
-            cadre: (officerInfo as any).cadre || officerInfo.cadre || "Unknown",
-            operatorCd: officerInfo.id,  // The 'id' field contains the operatorCD
-          } as any;
+            cadre: officerInfo.cadre || "Unknown",
+            psName: officerInfo.psName || "Unknown PS",
+            operatorCd: officerInfo.operatorCd || officerInfo.id,  // ✅ Use explicit field or fallback to id
+          } as Officer;
         }
         console.log("✅ Using real officer info (no defaults):", officerInfo);
       }
@@ -485,10 +489,11 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
 
       // Ensure we have valid officer info
       const finalOfficerInfo = {
-        id: officerInfo?.id || "2308175957",  // Use hardcoded fallback
-        name: officerInfo?.name || "System Officer",
+        id: officerInfo?.id || "2308175957",
+        name: officerInfo?.name || "A. Raju",
         cadre: officerInfo?.cadre || "Police Constable",
-        operatorCd: (officerInfo as any)?.operatorCd || officerInfo?.id || "2308175957",  // Use hardcoded fallback
+        psName: officerInfo?.psName || "System PS",
+        operatorCd: officerInfo?.operatorCd || "2308175957",  // ✅ Use explicit field with fallback
       };
 
       console.log("🔍 Final officer info to send:", finalOfficerInfo);
