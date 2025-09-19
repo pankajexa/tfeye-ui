@@ -514,10 +514,12 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         modificationReason: "Officer review completed via UI",
       };
 
-      console.log('🔍 FRONTEND: violations state:', violations);
-      console.log('🔍 FRONTEND: violations state length:', violations.length);
-      console.log('🔍 FRONTEND: activeChallana violation_types:', (activeChallana as any)?.violation_types);
-      console.log('🔍 FRONTEND: activeChallana vio_data:', (activeChallana as any)?.vio_data);
+          console.log('🔍 FRONTEND: violations state:', violations);
+          console.log('🔍 FRONTEND: violations state length:', violations.length);
+          console.log('🔍 FRONTEND: violations state contents:', JSON.stringify(violations, null, 2));
+          console.log('🔍 FRONTEND: activeChallana violation_types:', (activeChallana as any)?.violation_types);
+          console.log('🔍 FRONTEND: activeChallana vio_data:', (activeChallana as any)?.vio_data);
+          console.log('🔍 FRONTEND: activeChallana vio_data length:', (activeChallana as any)?.vio_data?.length);
       console.log(
         "📤 Prepare payload:",
         JSON.stringify(preparePayload, null, 2)
@@ -721,12 +723,16 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             vehicleNo: (preparedChallan?.vehicle_no || preparedChallan?.modified_license_plate || "").toUpperCase(),
             // Use point code from prepared challan record
             pointCD: preparedChallan?.point_cd,
-            appName: "SQBX"
+            appName: "SQBX",
+            // Add analysis UUID for database updates
+            analysis_uuid: (activeChallana as any)?.uuid
           };
 
           // Add validation to ensure required fields are present
           console.log('🔍 FRONTEND: Validating challan data...');
           console.log('🔍 FRONTEND: Final vioDataArray being used:', vioDataArray);
+          console.log('🔍 FRONTEND: vioDataArray length:', vioDataArray.length);
+          console.log('🔍 FRONTEND: vioDataArray contents:', JSON.stringify(vioDataArray, null, 2));
           console.log('🔍 FRONTEND: challanInfo constructed:', JSON.stringify(challanInfo, null, 2));
           console.log('📊 FRONTEND: preparedChallan data:', JSON.stringify(preparedChallan, null, 2));
           console.log('🔍 FRONTEND: preparedChallan.operator_cd:', preparedChallan?.operator_cd);
