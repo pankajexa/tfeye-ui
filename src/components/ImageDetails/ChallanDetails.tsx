@@ -64,11 +64,11 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
   ) => {
     const urlCache =
       window.challanUrlCache || (window.challanUrlCache = new Map());
-    
+
     // Calculate the range of images to keep cached (current + next 5)
     const startIndex = currentIndex;
     const endIndex = Math.min(currentIndex + 5, challans.length - 1);
-    
+
     // Preload any missing images in the range
     const preloadPromises = [];
     for (let i = startIndex; i <= endIndex; i++) {
@@ -88,11 +88,11 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
           }
           return false;
         })();
-        
+
         preloadPromises.push(preloadPromise);
       }
     }
-    
+
     if (preloadPromises.length > 0) {
       await Promise.all(preloadPromises);
     }
@@ -101,7 +101,7 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
   useEffect(() => {
     if (data?.data?.length > 0) {
       setPendingReviews(data?.data);
-      
+
       // Find the challan with matching ID
       const targetChallan = data?.data?.find(
         (item: any) => String(item?.id) === String(id)
@@ -109,7 +109,7 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       const targetIndex = data?.data?.findIndex(
         (item: any) => String(item?.id) === String(id)
       );
-      
+
       if (targetChallan && targetIndex !== -1) {
         setActiveChallana(targetChallan);
         setCurrentIndex(targetIndex);
@@ -171,7 +171,7 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
     });
 
     // Try to get vehicle number from multiple possible locations
-    const vehicleNumber = 
+    const vehicleNumber =
       activeChallana?.plateNumber ||
       (activeChallana as any)?.modified_vehicle_details?.registrationNumber ||
       (activeChallana as any)?.parameter_analysis?.rta_data_used
@@ -195,21 +195,21 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
     setPreviousChallansLoading(true);
     try {
       const result = await apiService.getPreviousChallans(vehicleNumber);
-      
+
       if (result.success) {
         setPreviousChallans(result.data);
       } else {
         // Handle authentication errors silently, show modal with empty state
         if (result.error === "Authentication required") {
           setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
-        } else {
-          showErrorToast({
-            heading: "No Previous Challans",
+      } else {
+        showErrorToast({
+          heading: "No Previous Challans",
             description: "No previous challans found for this vehicle.",
-            placement: "top-right",
-          });
-          // Still show modal with empty state for better UX
-          setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
+          placement: "top-right",
+        });
+        // Still show modal with empty state for better UX
+        setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
         }
       }
     } catch (error) {
@@ -309,10 +309,10 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       setActiveChallana(
         (prev) =>
           ({
-        ...prev,
-        modified_vehicle_details:
-          data?.data?.modified_vehicle_details ||
-          (prev as any)?.modified_vehicle_details,
+            ...prev,
+            modified_vehicle_details:
+              data?.data?.modified_vehicle_details ||
+              (prev as any)?.modified_vehicle_details,
           } as Challan)
       );
     } catch (error: any) {
@@ -494,16 +494,16 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         officerInfo: finalOfficerInfo,
         selectedViolations:
           violations?.map((v) => ({
-          id: v,
-          violation_description: v,
+            id: v,
+            violation_description: v,
             violation_cd: v,
-        })) || [],
+          })) || [],
         modifiedLicensePlate:
           (activeChallana as any)?.modified_vehicle_details
             ?.registrationNumber ||
           (activeChallana as any)?.parameter_analysis?.rta_data_used
             ?.registrationNumber ||
-                             (activeChallana as any)?.license_plate_number,
+          (activeChallana as any)?.license_plate_number,
         modificationReason: "Officer review completed via UI",
       };
 
@@ -517,8 +517,8 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       );
 
       const prepareResponse = await fetch(`${backendUrl}/api/challan/prepare`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(preparePayload),
       });
 
@@ -602,6 +602,9 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
           }
 
           // Add challan data matching the expected format
+          // Use data from the prepared challan data (prepareData.challanData) which has all the correct values
+          const preparedChallan = prepareData?.challanData;
+          
           // Convert violations to array format as expected by backend
           let vioDataArray = [];
           const vioData = preparedChallan?.vio_data;
@@ -689,9 +692,6 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             return formattedDateTime; // Fallback to current time only if no offence time
           })();
 
-          // Use data from the prepared challan data (prepareData.challanData) which has all the correct values
-          const preparedChallan = prepareData?.challanData;
-          
           const challanInfo = {
             vendorCode: "Squarebox",
             offenceDtTime: offenceDtTime,
@@ -785,15 +785,15 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
 
           // Call the correct endpoint with FormData
           fetch(`${backendUrl}/api/generate-challan`, {
-          method: "POST",
-          headers: {
+            method: "POST",
+            headers: {
               Authorization: `Bearer ${operatorToken}`,
-          },
+            },
             body: formData
-        }).then(async (response) => {
-          if (response.ok) {
-            const result = await response.json();
-            console.log('✅ Challan generation completed:', result);
+          }).then(async (response) => {
+            if (response.ok) {
+              const result = await response.json();
+              console.log('✅ Challan generation completed:', result);
               showSuccessToast({
                 heading: "Challan Generated",
                 description: "Challan has been successfully generated with image file.",
@@ -837,7 +837,7 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         const nextIndex = currentIndex + 1;
         const nextChallan = pendingReviews[nextIndex];
         setCurrentIndex(nextIndex);
-        
+
         setActiveChallana(nextChallan);
       }
 
@@ -876,28 +876,28 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
 
       if (response.success && response.data) {
         const nextChallanIndex = currentIndex + 1;
-        
+
         // Add the new challan to the list right after the current one
         const newChallan = response.data;
         const updatedPendingReviews = [...pendingReviews];
         updatedPendingReviews.splice(currentIndex + 1, 0, newChallan);
         setPendingReviews(updatedPendingReviews);
-        
+
         showSuccessToast({
           heading: "Success",
           description: "Another vehicle ticket created successfully",
           placement: "top-right",
         });
-        
+
         // Close modal and clear form
         setShowDuplicateModal(false);
         setDuplicateLicensePlate("");
         setDuplicateReason("");
-        
+
         // Navigate to the new challan
         setCurrentIndex(nextChallanIndex);
         setActiveChallana(newChallan);
-        
+
         // Start preloading for the new position
         setTimeout(
           () => maintainRollingCache(nextChallanIndex, updatedPendingReviews),
