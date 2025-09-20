@@ -461,92 +461,89 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             operatorCd: officerInfo.operatorCd || officerInfo.id,
           };
         }
+      }
+      // Ensure we have valid officer info
+      const finalOfficerInfo = {
+        id: officerInfo?.id || "2308182825",
+        name: officerInfo?.name || "A. Raju",
+        cadre: officerInfo?.cadre || "Police Constable",
+        psName: officerInfo?.psName || "System PS",
+        operatorCd: officerInfo?.operatorCd || "2308182825",
+      };
+      const preparePayload = {
+        analysisUuid: (activeChallana as any)?.uuid,
+        officerInfo: finalOfficerInfo,
+        selectedViolations:
+          violations?.map((v) => ({
+            id: v,
+            violation_description: v,
+            violation_cd: v,
+          })) || [],
+        modifiedLicensePlate:
+          (activeChallana as any)?.modified_vehicle_details
+            ?.registrationNumber ||
+          (activeChallana as any)?.parameter_analysis?.rta_data_used
+            ?.registrationNumber ||
+          (activeChallana as any)?.license_plate_number,
+        modificationReason: "Officer review completed via UI",
+      };
 
-        // Ensure we have valid officer info
-        const finalOfficerInfo = {
-          id: officerInfo?.id || "2308182825",
-          name: officerInfo?.name || "A. Raju",
-          cadre: officerInfo?.cadre || "Police Constable",
-          psName: officerInfo?.psName || "System PS",
-          operatorCd: officerInfo?.operatorCd || "2308182825",
-        };
-        const preparePayload = {
-          analysisUuid: (activeChallana as any)?.uuid,
-          officerInfo: finalOfficerInfo,
-          selectedViolations:
-            violations?.map((v) => ({
-              id: v,
-              violation_description: v,
-              violation_cd: v,
-            })) || [],
-          modifiedLicensePlate:
-            (activeChallana as any)?.modified_vehicle_details
-              ?.registrationNumber ||
-            (activeChallana as any)?.parameter_analysis?.rta_data_used
-              ?.registrationNumber ||
-            (activeChallana as any)?.license_plate_number,
-          modificationReason: "Officer review completed via UI",
-        };
-
-        let operatorToken = null;
-        const authData = localStorage.getItem("traffic_challan_auth");
-        if (authData) {
-          try {
-            const parsed = JSON.parse(authData);
-            operatorToken = parsed.appSessionToken || parsed.operatorToken;
-          } catch (error) {
-            console.warn("⚠️ Could not parse auth data from localStorage");
-          }
+      let operatorToken = null;
+      const authData = localStorage.getItem("traffic_challan_auth");
+      if (authData) {
+        try {
+          const parsed = JSON.parse(authData);
+          operatorToken = parsed.appSessionToken || parsed.operatorToken;
+        } catch (error) {
+          console.warn("⚠️ Could not parse auth data from localStorage");
         }
-        if (operatorToken) {
-          const prepareResponse = await fetch(
-            `${globals?.BASE_URL}/api/challan/prepare`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${operatorToken}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(preparePayload),
-            }
-          );
-
-          if (!prepareResponse.ok) {
-            const errorText = await prepareResponse.text();
-            const errorData = await prepareResponse.json().catch(() => ({}));
-            throw new Error(
-              errorData.error || "Failed to prepare challan data"
-            );
+      }
+      if (operatorToken) {
+        const prepareResponse = await fetch(
+          `${globals?.BASE_URL}/api/challan/prepare`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${operatorToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(preparePayload),
           }
-          showSuccessToast({
-            heading: "Challan Queued",
-            description:
-              "Challan has been queued for generation and moved to Generated section.",
-            placement: "top-right",
-          });
-          // Auto-move to next challan
-          if (currentIndex < pendingReviews.length - 1) {
-            const nextIndex = currentIndex + 1;
-            const nextChallan = pendingReviews[nextIndex];
-            setCurrentIndex(nextIndex);
+        );
 
-            setActiveChallana(nextChallan);
-          }
-
-          // Remove from pending reviews
-          const newPendingReviews = pendingReviews?.filter(
-            (item) => item.id !== activeChallana?.id
-          );
-          setPendingReviews(newPendingReviews);
-          setShowGenerateConfirmation(false);
-        } else {
-          showErrorToast({
-            heading: "Invalid or Missing Token",
-            description:
-              "The operator token is either missing, expired, or invalid. Please log in again to get a valid token and retry the operation.",
-            placement: "top-right",
-          });
+        if (!prepareResponse.ok) {
+          const errorText = await prepareResponse.text();
+          const errorData = await prepareResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to prepare challan data");
         }
+        showSuccessToast({
+          heading: "Challan Queued",
+          description:
+            "Challan has been queued for generation and moved to Generated section.",
+          placement: "top-right",
+        });
+        // Auto-move to next challan
+        if (currentIndex < pendingReviews.length - 1) {
+          const nextIndex = currentIndex + 1;
+          const nextChallan = pendingReviews[nextIndex];
+          setCurrentIndex(nextIndex);
+
+          setActiveChallana(nextChallan);
+        }
+
+        // Remove from pending reviews
+        const newPendingReviews = pendingReviews?.filter(
+          (item) => item.id !== activeChallana?.id
+        );
+        setPendingReviews(newPendingReviews);
+        setShowGenerateConfirmation(false);
+      } else {
+        showErrorToast({
+          heading: "Invalid or Missing Token",
+          description:
+            "The operator token is either missing, expired, or invalid. Please log in again to get a valid token and retry the operation.",
+          placement: "top-right",
+        });
       }
     } catch (error) {
       showErrorToast({
