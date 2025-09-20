@@ -57,9 +57,6 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
   const rejectButtonRef = useRef<HTMLButtonElement>(null);
   const approveButtonRef = useRef<HTMLButtonElement>(null);
 
-
-
-
   // Rolling preload strategy - always keep next 5 images ready
   const maintainRollingCache = async (
     currentIndex: number,
@@ -204,15 +201,23 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       } else {
         // Handle authentication errors silently, show modal with empty state
         if (result.error === "Authentication required") {
-          setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
-      } else {
-        showErrorToast({
-          heading: "No Previous Challans",
+          setPreviousChallans({
+            responseCode: "0",
+            responseDesc: "No data",
+            data: null,
+          });
+        } else {
+          showErrorToast({
+            heading: "No Previous Challans",
             description: "No previous challans found for this vehicle.",
-          placement: "top-right",
-        });
-        // Still show modal with empty state for better UX
-        setPreviousChallans({ responseCode: "0", responseDesc: "No data", data: null });
+            placement: "top-right",
+          });
+          // Still show modal with empty state for better UX
+          setPreviousChallans({
+            responseCode: "0",
+            responseDesc: "No data",
+            data: null,
+          });
         }
       }
     } catch (error) {
@@ -403,6 +408,158 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
     }
   };
 
+  const generateChallan = async () => {
+    setButtonLoader(true);
+    try {
+      if (violations.length === 0) {
+        showErrorToast({
+          heading: "No Violations",
+          description: "At least one violation type must be selected.",
+          placement: "top-right",
+        });
+        return;
+      }
+
+      // Validate required data
+      if (!globals?.BASE_URL) {
+        throw new Error(
+          "Backend configuration missing. Please check your environment setup."
+        );
+      }
+
+      if (!(activeChallana as any)?.uuid) {
+        throw new Error("Invalid challan data. Please refresh and try again.");
+      }
+
+      let officerInfo = currentOfficer;
+
+      if (!officerInfo) {
+        // Use hardcoded credentials for now
+        officerInfo = {
+          id: "2308182825",
+          name: "A.Raju",
+          cadre: "Police Constable",
+          operatorCd: "2308182825",
+        } as any;
+      } else {
+        // Use real officer info if available, otherwise use hardcoded credentials
+        if (!officerInfo.operatorCd && !officerInfo.id) {
+          officerInfo = {
+            id: "2308182825",
+            name: "A. Raju",
+            cadre: "Police Constable",
+            psName: "System PS",
+            operatorCd: "2308182825",
+          };
+        } else {
+          // Use real officer info - now operatorCd field exists in interface
+          officerInfo = {
+            id: officerInfo.id,
+            name: officerInfo.name || "Unknown Officer",
+            cadre: officerInfo.cadre || "Unknown",
+            psName: officerInfo.psName || "Unknown PS",
+            operatorCd: officerInfo.operatorCd || officerInfo.id,
+          };
+        }
+
+        // Ensure we have valid officer info
+        const finalOfficerInfo = {
+          id: officerInfo?.id || "2308182825",
+          name: officerInfo?.name || "A. Raju",
+          cadre: officerInfo?.cadre || "Police Constable",
+          psName: officerInfo?.psName || "System PS",
+          operatorCd: officerInfo?.operatorCd || "2308182825",
+        };
+        const preparePayload = {
+          analysisUuid: (activeChallana as any)?.uuid,
+          officerInfo: finalOfficerInfo,
+          selectedViolations:
+            violations?.map((v) => ({
+              id: v,
+              violation_description: v,
+              violation_cd: v,
+            })) || [],
+          modifiedLicensePlate:
+            (activeChallana as any)?.modified_vehicle_details
+              ?.registrationNumber ||
+            (activeChallana as any)?.parameter_analysis?.rta_data_used
+              ?.registrationNumber ||
+            (activeChallana as any)?.license_plate_number,
+          modificationReason: "Officer review completed via UI",
+        };
+
+        let operatorToken = null;
+        const authData = localStorage.getItem("traffic_challan_auth");
+        if (authData) {
+          try {
+            const parsed = JSON.parse(authData);
+            operatorToken = parsed.appSessionToken || parsed.operatorToken;
+          } catch (error) {
+            console.warn("⚠️ Could not parse auth data from localStorage");
+          }
+        }
+        if (operatorToken) {
+          const prepareResponse = await fetch(
+            `${globals?.BASE_URL}/api/challan/prepare`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${operatorToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(preparePayload),
+            }
+          );
+
+          if (!prepareResponse.ok) {
+            const errorText = await prepareResponse.text();
+            const errorData = await prepareResponse.json().catch(() => ({}));
+            throw new Error(
+              errorData.error || "Failed to prepare challan data"
+            );
+          }
+          showSuccessToast({
+            heading: "Challan Queued",
+            description:
+              "Challan has been queued for generation and moved to Generated section.",
+            placement: "top-right",
+          });
+          // Auto-move to next challan
+          if (currentIndex < pendingReviews.length - 1) {
+            const nextIndex = currentIndex + 1;
+            const nextChallan = pendingReviews[nextIndex];
+            setCurrentIndex(nextIndex);
+
+            setActiveChallana(nextChallan);
+          }
+
+          // Remove from pending reviews
+          const newPendingReviews = pendingReviews?.filter(
+            (item) => item.id !== activeChallana?.id
+          );
+          setPendingReviews(newPendingReviews);
+          setShowGenerateConfirmation(false);
+        } else {
+          showErrorToast({
+            heading: "Invalid or Missing Token",
+            description:
+              "The operator token is either missing, expired, or invalid. Please log in again to get a valid token and retry the operation.",
+            placement: "top-right",
+          });
+        }
+      }
+    } catch (error) {
+      showErrorToast({
+        heading: "Generation Failed",
+        description:
+          error?.error || "Failed to queue challan. Please try again.",
+        placement: "top-right",
+      });
+    } finally {
+      setButtonLoader(false);
+    }
+  };
+
   const handleApprovedChallana = async () => {
     try {
       setButtonLoader(true);
@@ -429,9 +586,18 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
 
       console.log("👤 Current Officer Info:", currentOfficer);
       console.log("🔐 Authentication Status:", !!currentOfficer);
-      console.log("🔍 Current Officer Fields:", currentOfficer ? Object.keys(currentOfficer) : 'No officer');
-      console.log("🔍 Current Officer operatorCd (NEW FIELD):", currentOfficer?.operatorCd);
-      console.log("🔍 Current Officer id (CONTAINS OPERATOR CODE):", currentOfficer?.id);
+      console.log(
+        "🔍 Current Officer Fields:",
+        currentOfficer ? Object.keys(currentOfficer) : "No officer"
+      );
+      console.log(
+        "🔍 Current Officer operatorCd (NEW FIELD):",
+        currentOfficer?.operatorCd
+      );
+      console.log(
+        "🔍 Current Officer id (CONTAINS OPERATOR CODE):",
+        currentOfficer?.id
+      );
       console.log("🔍 Current Officer name:", currentOfficer?.name);
       console.log("🔍 Current Officer cadre:", currentOfficer?.cadre);
       console.log("🔍 Current Officer psName:", currentOfficer?.psName);
@@ -453,11 +619,11 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       } else {
         // Use real officer info if available, otherwise use hardcoded credentials
         if (!officerInfo.operatorCd && !officerInfo.id) {
-          console.log('⚠️ No operator code found, using hardcoded credentials');
+          console.log("⚠️ No operator code found, using hardcoded credentials");
           officerInfo = {
             id: "2308182825",
             name: "A. Raju",
-            cadre: "Police Constable", 
+            cadre: "Police Constable",
             psName: "System PS",
             operatorCd: "2308182825",
           } as Officer;
@@ -465,10 +631,10 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
           // Use real officer info - now operatorCd field exists in interface
           officerInfo = {
             id: officerInfo.id,
-            name: officerInfo.name || "Unknown Officer", 
+            name: officerInfo.name || "Unknown Officer",
             cadre: officerInfo.cadre || "Unknown",
             psName: officerInfo.psName || "Unknown PS",
-            operatorCd: officerInfo.operatorCd || officerInfo.id,  // ✅ Use explicit field or fallback to id
+            operatorCd: officerInfo.operatorCd || officerInfo.id, // ✅ Use explicit field or fallback to id
           } as Officer;
         }
         console.log("✅ Using real officer info (no defaults):", officerInfo);
@@ -500,9 +666,9 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       };
 
       console.log("🔍 Final officer info to send:", finalOfficerInfo);
-      
+
       // For now, allow hardcoded credentials to work
-      console.log('✅ Using operator code:', finalOfficerInfo.operatorCd);
+      console.log("✅ Using operator code:", finalOfficerInfo.operatorCd);
 
       const preparePayload = {
         analysisUuid: (activeChallana as any)?.uuid,
@@ -522,12 +688,24 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         modificationReason: "Officer review completed via UI",
       };
 
-          console.log('🔍 FRONTEND: violations state:', violations);
-          console.log('🔍 FRONTEND: violations state length:', violations.length);
-          console.log('🔍 FRONTEND: violations state contents:', JSON.stringify(violations, null, 2));
-          console.log('🔍 FRONTEND: activeChallana violation_types:', (activeChallana as any)?.violation_types);
-          console.log('🔍 FRONTEND: activeChallana vio_data:', (activeChallana as any)?.vio_data);
-          console.log('🔍 FRONTEND: activeChallana vio_data length:', (activeChallana as any)?.vio_data?.length);
+      console.log("🔍 FRONTEND: violations state:", violations);
+      console.log("🔍 FRONTEND: violations state length:", violations.length);
+      console.log(
+        "🔍 FRONTEND: violations state contents:",
+        JSON.stringify(violations, null, 2)
+      );
+      console.log(
+        "🔍 FRONTEND: activeChallana violation_types:",
+        (activeChallana as any)?.violation_types
+      );
+      console.log(
+        "🔍 FRONTEND: activeChallana vio_data:",
+        (activeChallana as any)?.vio_data
+      );
+      console.log(
+        "🔍 FRONTEND: activeChallana vio_data length:",
+        (activeChallana as any)?.vio_data?.length
+      );
       console.log(
         "📤 Prepare payload:",
         JSON.stringify(preparePayload, null, 2)
@@ -559,46 +737,40 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       const authData = localStorage.getItem("traffic_challan_auth");
       let operatorToken = null;
 
-      console.log('🔍 FRONTEND: Raw auth data from localStorage:', authData);
+      console.log("🔍 FRONTEND: Raw auth data from localStorage:", authData);
 
       if (authData) {
         try {
           const parsed = JSON.parse(authData);
-          console.log('🔍 FRONTEND: Parsed auth data:', JSON.stringify(parsed, null, 2));
-          console.log('🔍 FRONTEND: CRITICAL - Token analysis:');
-          console.log('  - parsed.operatorToken exists:', !!parsed.operatorToken);
-          console.log('  - parsed.operatorToken type:', typeof parsed.operatorToken);
-          console.log('  - parsed.operatorToken is JWT:', parsed.operatorToken && parsed.operatorToken.startsWith('eyJ'));
-          console.log('  - parsed.appSessionToken exists:', !!parsed.appSessionToken);
-          console.log('  - parsed.appSessionToken type:', typeof parsed.appSessionToken);
-          console.log('  - parsed.appSessionToken is JWT:', parsed.appSessionToken && parsed.appSessionToken.startsWith('eyJ'));
-          console.log('🔍 FRONTEND: currentOfficer from localStorage:', parsed.currentOfficer);
-          console.log('🔍 FRONTEND: operatorToken from localStorage:', parsed.operatorToken ? 'PRESENT' : 'MISSING');
-          console.log('🔍 FRONTEND: appSessionToken from localStorage:', parsed.appSessionToken ? 'PRESENT' : 'MISSING');
-          
-          // For TSeChallan API calls, we MUST use the TSeChallan operatorToken, not our JWT
-          console.log('🔍 FRONTEND: Available tokens in localStorage:');
-          console.log('  - operatorToken (TSeChallan):', parsed.operatorToken ? parsed.operatorToken.substring(0, 30) + '...' : 'MISSING');
-          console.log('  - appSessionToken (JWT):', parsed.appSessionToken ? parsed.appSessionToken.substring(0, 30) + '...' : 'MISSING');
-          
-          // CRITICAL: Use TSeChallan operatorToken for TSeChallan API calls
-          operatorToken = parsed.operatorToken;  // ✅ MUST be TSeChallan token
-          
-          if (!operatorToken) {
-            console.error('❌ FRONTEND: No TSeChallan operatorToken found!');
-            console.error('❌ FRONTEND: Cannot make TSeChallan API calls without proper token');
-            throw new Error('TSeChallan operatorToken missing. Please log in again to get fresh tokens.');
-          }
-          
-          if (operatorToken.startsWith('eyJ')) {
-            console.error('❌ FRONTEND: CRITICAL ERROR - Using JWT instead of TSeChallan token!');
-            console.error('❌ FRONTEND: This WILL cause "Invalid Token" error from TSeChallan API');
-            console.error('❌ FRONTEND: JWT tokens cannot be used for TSeChallan API calls');
-            throw new Error('Wrong token type detected. Using JWT instead of TSeChallan operatorToken.');
-          }
-          
-          console.log('✅ FRONTEND: Using correct TSeChallan operatorToken');
-          console.log('🔍 FRONTEND: Token preview:', operatorToken.substring(0, 30) + '...');
+          console.log(
+            "🔍 FRONTEND: Parsed auth data:",
+            JSON.stringify(parsed, null, 2)
+          );
+          console.log(
+            "🔍 FRONTEND: currentOfficer from localStorage:",
+            parsed.currentOfficer
+          );
+          console.log(
+            "🔍 FRONTEND: operatorToken from localStorage:",
+            parsed.operatorToken ? "PRESENT" : "MISSING"
+          );
+          console.log(
+            "🔍 FRONTEND: appSessionToken from localStorage:",
+            parsed.appSessionToken ? "PRESENT" : "MISSING"
+          );
+
+          // Try appSessionToken first (contains operator code), then operatorToken
+          operatorToken = parsed.appSessionToken || parsed.operatorToken;
+          console.log(
+            "🔍 FRONTEND: Using token type:",
+            parsed.appSessionToken
+              ? "APP_SESSION_TOKEN (JWT)"
+              : "OPERATOR_TOKEN (TSeChallan)"
+          );
+          console.log(
+            "🔍 FRONTEND: Token preview:",
+            operatorToken ? operatorToken.substring(0, 30) + "..." : "NONE"
+          );
         } catch (error) {
           console.warn("⚠️ Could not parse auth data from localStorage");
         }
@@ -610,66 +782,110 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         const formData = new FormData();
 
         try {
-          console.log('🔐 Getting presigned URL for image UUID:', (activeChallana as any)?.uuid);
+          console.log(
+            "🔐 Getting presigned URL for image UUID:",
+            (activeChallana as any)?.uuid
+          );
 
           // Get presigned URL from backend API
-          const presignedResponse = await fetch(`${backendUrl}/api/image/${(activeChallana as any)?.uuid}/presigned-url`);
+          const presignedResponse = await fetch(
+            `${backendUrl}/api/image/${
+              (activeChallana as any)?.uuid
+            }/presigned-url`
+          );
 
           if (presignedResponse.ok) {
             const presignedData = await presignedResponse.json();
-            console.log('✅ Got presigned URL from backend');
+            console.log("✅ Got presigned URL from backend");
 
             // Fetch the actual image using presigned URL
             const imageResponse = await fetch(presignedData.presignedUrl);
-            console.log('📥 Image fetch status:', imageResponse.status, imageResponse.statusText);
-            console.log('📋 Image content-type:', imageResponse.headers.get('content-type'));
+            console.log(
+              "📥 Image fetch status:",
+              imageResponse.status,
+              imageResponse.statusText
+            );
+            console.log(
+              "📋 Image content-type:",
+              imageResponse.headers.get("content-type")
+            );
 
             if (imageResponse.ok) {
               const imageBlob = await imageResponse.blob();
-              console.log('📊 Image blob size:', imageBlob.size, 'bytes');
-              console.log('📊 Image blob type:', imageBlob.type);
+              console.log("📊 Image blob size:", imageBlob.size, "bytes");
+              console.log("📊 Image blob type:", imageBlob.type);
 
               // Validate it's actually an image
-              if (imageBlob.size > 100 && (imageBlob.type.startsWith('image/') || imageResponse.headers.get('content-type')?.startsWith('image/'))) {
-                const imageFile = new File([imageBlob], 'violation_image.jpg', { type: 'image/jpeg' });
-                formData.append('img', imageFile);
-                console.log('✅ Valid image file added to FormData');
+              if (
+                imageBlob.size > 100 &&
+                (imageBlob.type.startsWith("image/") ||
+                  imageResponse.headers
+                    .get("content-type")
+                    ?.startsWith("image/"))
+              ) {
+                const imageFile = new File([imageBlob], "violation_image.jpg", {
+                  type: "image/jpeg",
+                });
+                formData.append("img", imageFile);
+                console.log("✅ Valid image file added to FormData");
               } else {
-                console.error('❌ Invalid image blob:', { size: imageBlob.size, type: imageBlob.type });
+                console.error("❌ Invalid image blob:", {
+                  size: imageBlob.size,
+                  type: imageBlob.type,
+                });
                 // Try to read as text to see what we got
                 try {
                   const text = await imageBlob.text();
-                  console.error('❌ Blob content preview:', text.substring(0, 200));
+                  console.error(
+                    "❌ Blob content preview:",
+                    text.substring(0, 200)
+                  );
                 } catch (e) {
-                  console.error('❌ Could not read blob as text');
+                  console.error("❌ Could not read blob as text");
                 }
-                throw new Error('Received invalid image data (likely HTML error page)');
+                throw new Error(
+                  "Received invalid image data (likely HTML error page)"
+                );
               }
             } else {
-              console.error('❌ Failed to fetch image from presigned URL:', imageResponse.status);
-              throw new Error('Failed to fetch image from presigned URL');
+              console.error(
+                "❌ Failed to fetch image from presigned URL:",
+                imageResponse.status
+              );
+              throw new Error("Failed to fetch image from presigned URL");
             }
           } else {
-            console.error('❌ Failed to get presigned URL:', presignedResponse.status);
-            throw new Error('Failed to get presigned URL from backend');
+            console.error(
+              "❌ Failed to get presigned URL:",
+              presignedResponse.status
+            );
+            throw new Error("Failed to get presigned URL from backend");
           }
 
           // Add challan data matching the expected format
           // Use data from the prepared challan data (prepareData.challanData) which has all the correct values
           const preparedChallan = prepareData?.challanData;
-          
+
           // Convert violations to array format as expected by backend
           let vioDataArray = [];
           const vioData = preparedChallan?.vio_data;
-          console.log('🔍 FRONTEND: Raw vio_data from preparedChallan:', vioData);
-          console.log('🔍 FRONTEND: vio_data type:', typeof vioData);
-          console.log('🔍 FRONTEND: vio_data isArray:', Array.isArray(vioData));
+          console.log(
+            "🔍 FRONTEND: Raw vio_data from preparedChallan:",
+            vioData
+          );
+          console.log("🔍 FRONTEND: vio_data type:", typeof vioData);
+          console.log("🔍 FRONTEND: vio_data isArray:", Array.isArray(vioData));
           if (Array.isArray(vioData)) {
             // Ensure zero-padding for array elements
-            vioDataArray = vioData.map(code => {
+            vioDataArray = vioData.map((code) => {
               const codeStr = code.toString().trim();
               if (codeStr.length === 1 && /^\d$/.test(codeStr)) {
-                console.log('🔍 FRONTEND: Padding single digit code:', codeStr, '→', `0${codeStr}`);
+                console.log(
+                  "🔍 FRONTEND: Padding single digit code:",
+                  codeStr,
+                  "→",
+                  `0${codeStr}`
+                );
                 return `0${codeStr}`;
               }
               return codeStr;
@@ -681,7 +897,12 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
               .map((code) => {
                 const trimmedCode = code.trim();
                 if (trimmedCode.length === 1 && /^\d$/.test(trimmedCode)) {
-                  console.log('🔍 FRONTEND: Padding comma-separated code:', trimmedCode, '→', `0${trimmedCode}`);
+                  console.log(
+                    "🔍 FRONTEND: Padding comma-separated code:",
+                    trimmedCode,
+                    "→",
+                    `0${trimmedCode}`
+                  );
                   return `0${trimmedCode}`;
                 }
                 return trimmedCode;
@@ -691,7 +912,12 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             // Single value - pad if needed
             const singleCode = vioData.toString().trim();
             if (singleCode.length === 1 && /^\d$/.test(singleCode)) {
-              console.log('🔍 FRONTEND: Padding single value code:', singleCode, '→', `0${singleCode}`);
+              console.log(
+                "🔍 FRONTEND: Padding single value code:",
+                singleCode,
+                "→",
+                `0${singleCode}`
+              );
               vioDataArray = [`0${singleCode}`];
             } else {
               vioDataArray = [singleCode];
@@ -726,20 +952,36 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
 
           // Use actual offence date/time from analysis, not current time
           const offenceDtTime = (() => {
-            if ((activeChallana as any)?.offence_date && (activeChallana as any)?.offence_time) {
+            if (
+              (activeChallana as any)?.offence_date &&
+              (activeChallana as any)?.offence_time
+            ) {
               const date = new Date((activeChallana as any).offence_date);
-              const day = String(date.getDate()).padStart(2, '0');
-              const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+              const day = String(date.getDate()).padStart(2, "0");
+              const monthNames = [
+                "Jan",
+                "Feb",
+                "Mar",
+                "Apr",
+                "May",
+                "Jun",
+                "Jul",
+                "Aug",
+                "Sep",
+                "Oct",
+                "Nov",
+                "Dec",
+              ];
               const month = monthNames[date.getMonth()];
               const year = date.getFullYear();
-              
+
               // Format time properly
               let time = (activeChallana as any).offence_time;
-              if (time && time.includes(':')) {
-                const [hours, minutes] = time.split(':');
-                time = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+              if (time && time.includes(":")) {
+                const [hours, minutes] = time.split(":");
+                time = `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}`;
               }
-              
+
               return `${day}-${month}-${year} ${time}`;
             }
             return formattedDateTime; // Fallback to current time only if no offence time
@@ -751,32 +993,64 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             vioData: vioDataArray,
             // Use data from prepared challan record (which has correct values)
             capturedByCD: preparedChallan?.captured_by_cd,
-            operatorCD: preparedChallan?.operator_cd || finalOfficerInfo.operatorCd,
+            operatorCD:
+              preparedChallan?.operator_cd || finalOfficerInfo.operatorCd,
             vehRemak: "N",
             // Use GPS data from prepared challan record
-            gpsLatti: preparedChallan?.gps_latti ? String(preparedChallan.gps_latti) : undefined,
-            gpsLong: preparedChallan?.gps_long ? String(preparedChallan.gps_long) : undefined,
+            gpsLatti: preparedChallan?.gps_latti
+              ? String(preparedChallan.gps_latti)
+              : undefined,
+            gpsLong: preparedChallan?.gps_long
+              ? String(preparedChallan.gps_long)
+              : undefined,
             gpsLocation: preparedChallan?.gps_location,
-            vehicleNo: (preparedChallan?.vehicle_no || preparedChallan?.modified_license_plate || "").toUpperCase(),
+            vehicleNo: (
+              preparedChallan?.vehicle_no ||
+              preparedChallan?.modified_license_plate ||
+              ""
+            ).toUpperCase(),
             // Use point code from prepared challan record
             pointCD: preparedChallan?.point_cd,
             appName: "SQBX",
             // Add analysis UUID for database updates
-            analysis_uuid: (activeChallana as any)?.uuid
+            analysis_uuid: (activeChallana as any)?.uuid,
           };
 
           // Add validation to ensure required fields are present
-          console.log('🔍 FRONTEND: Validating challan data...');
-          console.log('🔍 FRONTEND: Final vioDataArray being used:', vioDataArray);
-          console.log('🔍 FRONTEND: vioDataArray length:', vioDataArray.length);
-          console.log('🔍 FRONTEND: vioDataArray contents:', JSON.stringify(vioDataArray, null, 2));
-          console.log('🔍 FRONTEND: challanInfo constructed:', JSON.stringify(challanInfo, null, 2));
-          console.log('🔍 FRONTEND: challanInfo.operatorCD being sent:', challanInfo.operatorCD);
-          console.log('🔍 FRONTEND: challanInfo.analysis_uuid being sent:', challanInfo.analysis_uuid);
-          console.log('📊 FRONTEND: preparedChallan data:', JSON.stringify(preparedChallan, null, 2));
-          console.log('🔍 FRONTEND: preparedChallan.operator_cd:', preparedChallan?.operator_cd);
-          console.log('🔍 FRONTEND: This should match the logged-in officer, not 23001007');
-          console.log('📊 FRONTEND: preparedChallan data available:', {
+          console.log("🔍 FRONTEND: Validating challan data...");
+          console.log(
+            "🔍 FRONTEND: Final vioDataArray being used:",
+            vioDataArray
+          );
+          console.log("🔍 FRONTEND: vioDataArray length:", vioDataArray.length);
+          console.log(
+            "🔍 FRONTEND: vioDataArray contents:",
+            JSON.stringify(vioDataArray, null, 2)
+          );
+          console.log(
+            "🔍 FRONTEND: challanInfo constructed:",
+            JSON.stringify(challanInfo, null, 2)
+          );
+          console.log(
+            "🔍 FRONTEND: challanInfo.operatorCD being sent:",
+            challanInfo.operatorCD
+          );
+          console.log(
+            "🔍 FRONTEND: challanInfo.analysis_uuid being sent:",
+            challanInfo.analysis_uuid
+          );
+          console.log(
+            "📊 FRONTEND: preparedChallan data:",
+            JSON.stringify(preparedChallan, null, 2)
+          );
+          console.log(
+            "🔍 FRONTEND: preparedChallan.operator_cd:",
+            preparedChallan?.operator_cd
+          );
+          console.log(
+            "🔍 FRONTEND: This should match the logged-in officer, not 23001007"
+          );
+          console.log("📊 FRONTEND: preparedChallan data available:", {
             hasCapturedBy: !!preparedChallan?.captured_by_cd,
             capturedByValue: preparedChallan?.captured_by_cd,
             hasOperatorCd: !!preparedChallan?.operator_cd,
@@ -792,13 +1066,14 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             hasVehicleNo: !!preparedChallan?.vehicle_no,
             vehicleNoValue: preparedChallan?.vehicle_no,
             hasAppName: !!preparedChallan?.app_name,
-            appNameValue: preparedChallan?.app_name
+            appNameValue: preparedChallan?.app_name,
           });
 
           if (!challanInfo.capturedByCD) {
             showErrorToast({
               heading: "Missing Officer Data",
-              description: "Captured officer information missing from analysis data.",
+              description:
+                "Captured officer information missing from analysis data.",
               placement: "top-right",
             });
             return;
@@ -806,7 +1081,7 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
 
           if (!challanInfo.gpsLatti || !challanInfo.gpsLong) {
             showErrorToast({
-              heading: "Missing GPS Data", 
+              heading: "Missing GPS Data",
               description: "GPS coordinates missing from analysis data.",
               placement: "top-right",
             });
@@ -831,8 +1106,11 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             return;
           }
 
-          console.log('📤 FRONTEND: Final challanInfo being sent:', JSON.stringify(challanInfo, null, 2));
-          console.log('🔍 FRONTEND: Final challanInfo validation check:', {
+          console.log(
+            "📤 FRONTEND: Final challanInfo being sent:",
+            JSON.stringify(challanInfo, null, 2)
+          );
+          console.log("🔍 FRONTEND: Final challanInfo validation check:", {
             capturedByCD: challanInfo.capturedByCD,
             operatorCD: challanInfo.operatorCD,
             gpsLatti: challanInfo.gpsLatti,
@@ -840,9 +1118,9 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             gpsLocation: challanInfo.gpsLocation,
             vehicleNo: challanInfo.vehicleNo,
             pointCD: challanInfo.pointCD,
-            appName: challanInfo.appName
+            appName: challanInfo.appName,
           });
-          formData.append('challanInfo', JSON.stringify(challanInfo));
+          formData.append("challanInfo", JSON.stringify(challanInfo));
 
           // Call the correct endpoint with FormData
           fetch(`${backendUrl}/api/generate-challan`, {
@@ -850,27 +1128,28 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             headers: {
               Authorization: `Bearer ${operatorToken}`,
             },
-            body: formData
+            body: formData,
           }).then(async (response) => {
             if (response.ok) {
               const result = await response.json();
-              console.log('✅ Challan generation completed:', result);
+              console.log("✅ Challan generation completed:", result);
               showSuccessToast({
                 heading: "Challan Generated",
-                description: "Challan has been successfully generated with image file.",
+                description:
+                  "Challan has been successfully generated with image file.",
                 placement: "top-right",
               });
-            } 
-            else {
-        const errorData = await response.json().catch(() => ({}));
-              console.error('❌ Challan generation failed:', errorData);
+            } else {
+              const errorData = await response.json().catch(() => ({}));
+              console.error("❌ Challan generation failed:", errorData);
               showErrorToast({
                 heading: "Generation Error",
                 description:
                   "Failed to generate challan. Please check your connection and try again.",
                 placement: "top-right",
               });
-            }})
+            }
+          });
         } catch (imageError) {
           console.error(
             "❌ Failed to fetch image for challan generation:",
@@ -1155,7 +1434,7 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             >
               Cancel
             </Button>
-            <Button disabled={buttonLoader} onClick={handleApprovedChallana}>
+            <Button disabled={buttonLoader} onClick={generateChallan}>
               {buttonLoader ? "Processing..." : "Confirm & Generate"}
             </Button>
           </div>
