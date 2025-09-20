@@ -1,7 +1,9 @@
 export interface Officer {
+  id: string;           // Contains the operatorCD from TSeChallan API
   psName: string;
   cadre: string;
   name: string;
+  operatorCd: string;   // Explicit operatorCD field for clarity
 }
 
 export interface Vehicle {

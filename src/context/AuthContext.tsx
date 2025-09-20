@@ -7,10 +7,11 @@ import React, {
 } from "react";
 
 export interface Officer {
-  id: string;
+  id: string;           // Contains the operatorCD from TSeChallan API
   name: string;
   cadre: string;
   psName: string;
+  operatorCd: string;   // Explicit operatorCD field for clarity
 }
 
 interface AuthContextType {
@@ -76,6 +77,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       name: result.operatorProfile?.operatorName || "Unknown",
       cadre: result.operatorProfile?.cadreName || "",
       psName: result.operatorProfile?.psName || "",
+      operatorCd: result.operatorProfile?.operatorCD,  // ✅ Explicit mapping
     };
 
     setIsAuthenticated(true);

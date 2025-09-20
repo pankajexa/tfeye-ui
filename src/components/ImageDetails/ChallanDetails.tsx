@@ -427,9 +427,11 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       console.log("👤 Current Officer Info:", currentOfficer);
       console.log("🔐 Authentication Status:", !!currentOfficer);
       console.log("🔍 Current Officer Fields:", currentOfficer ? Object.keys(currentOfficer) : 'No officer');
-      console.log("🔍 Current Officer operatorCd:", (currentOfficer as any)?.operatorCd);
-      console.log("🔍 Current Officer operatorCD:", (currentOfficer as any)?.operatorCD);
-      console.log("🔍 Current Officer id:", currentOfficer?.id);
+      console.log("🔍 Current Officer operatorCd (NEW FIELD):", currentOfficer?.operatorCd);
+      console.log("🔍 Current Officer id (CONTAINS OPERATOR CODE):", currentOfficer?.id);
+      console.log("🔍 Current Officer name:", currentOfficer?.name);
+      console.log("🔍 Current Officer cadre:", currentOfficer?.cadre);
+      console.log("🔍 Current Officer psName:", currentOfficer?.psName);
 
       // Get officer info (use currentOfficer or create with defaults)
       let officerInfo = currentOfficer;
@@ -440,29 +442,31 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         );
         // Use hardcoded credentials for now
         officerInfo = {
-          id: "2308175957",
+          id: "2308182825",
           name: "A.Raju",
           cadre: "Police Constable",
-          operatorCd: "2308175957",
+          operatorCd: "2308182825",
         } as any;
       } else {
         // Use real officer info if available, otherwise use hardcoded credentials
-        if (!(officerInfo as any).operatorCd && !(officerInfo as any).operatorCD && !officerInfo.id) {
+        if (!officerInfo.operatorCd && !officerInfo.id) {
           console.log('⚠️ No operator code found, using hardcoded credentials');
           officerInfo = {
-            id: "2308175957",
+            id: "2308182825",
             name: "A. Raju",
             cadre: "Police Constable", 
-            operatorCd: "2308175957",
-          } as any;
+            psName: "System PS",
+            operatorCd: "2308182825",
+          } as Officer;
         } else {
-          // Use real officer info - operatorCd is stored in the 'id' field
+          // Use real officer info - now operatorCd field exists in interface
           officerInfo = {
-            id: officerInfo.id,  // This contains the real operatorCD from login
+            id: officerInfo.id,
             name: officerInfo.name || "Unknown Officer", 
-            cadre: (officerInfo as any).cadre || officerInfo.cadre || "Unknown",
-            operatorCd: officerInfo.id,  // The 'id' field contains the operatorCD
-          } as any;
+            cadre: officerInfo.cadre || "Unknown",
+            psName: officerInfo.psName || "Unknown PS",
+            operatorCd: officerInfo.operatorCd || officerInfo.id,  // ✅ Use explicit field or fallback to id
+          } as Officer;
         }
         console.log("✅ Using real officer info (no defaults):", officerInfo);
       }
@@ -485,10 +489,11 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
 
       // Ensure we have valid officer info
       const finalOfficerInfo = {
-        id: officerInfo?.id || "2308175957",  // Use hardcoded fallback
-        name: officerInfo?.name || "System Officer",
+        id: officerInfo?.id || "2308182825",
+        name: officerInfo?.name || "A. Raju",
         cadre: officerInfo?.cadre || "Police Constable",
-        operatorCd: (officerInfo as any)?.operatorCd || officerInfo?.id || "2308175957",  // Use hardcoded fallback
+        psName: officerInfo?.psName || "System PS",
+        operatorCd: officerInfo?.operatorCd || "2308182825",
       };
 
       console.log("🔍 Final officer info to send:", finalOfficerInfo);
@@ -561,7 +566,10 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
           console.log('🔍 FRONTEND: operatorToken from localStorage:', parsed.operatorToken ? 'PRESENT' : 'MISSING');
           console.log('🔍 FRONTEND: appSessionToken from localStorage:', parsed.appSessionToken ? 'PRESENT' : 'MISSING');
           
-          operatorToken = parsed.operatorToken || parsed.appSessionToken;
+          // Try appSessionToken first (contains operator code), then operatorToken
+          operatorToken = parsed.appSessionToken || parsed.operatorToken;
+          console.log('🔍 FRONTEND: Using token type:', parsed.appSessionToken ? 'APP_SESSION_TOKEN (JWT)' : 'OPERATOR_TOKEN (TSeChallan)');
+          console.log('🔍 FRONTEND: Token preview:', operatorToken ? operatorToken.substring(0, 30) + '...' : 'NONE');
         } catch (error) {
           console.warn("⚠️ Could not parse auth data from localStorage");
         }
@@ -734,6 +742,8 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
           console.log('🔍 FRONTEND: vioDataArray length:', vioDataArray.length);
           console.log('🔍 FRONTEND: vioDataArray contents:', JSON.stringify(vioDataArray, null, 2));
           console.log('🔍 FRONTEND: challanInfo constructed:', JSON.stringify(challanInfo, null, 2));
+          console.log('🔍 FRONTEND: challanInfo.operatorCD being sent:', challanInfo.operatorCD);
+          console.log('🔍 FRONTEND: challanInfo.analysis_uuid being sent:', challanInfo.analysis_uuid);
           console.log('📊 FRONTEND: preparedChallan data:', JSON.stringify(preparedChallan, null, 2));
           console.log('🔍 FRONTEND: preparedChallan.operator_cd:', preparedChallan?.operator_cd);
           console.log('🔍 FRONTEND: This should match the logged-in officer, not 23001007');
