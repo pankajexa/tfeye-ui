@@ -10,6 +10,18 @@ import ReusableTable from "@/components/ui/ReusableTable";
 import { Badge } from "@/components/ui/Badge";
 import { dateFormat } from "@/utils/dateFormat";
 
+const violationVariants = [
+  // "red",
+  // "yellow",
+  // "green",
+  "blue",
+  "orange",
+  "indigo",
+  "pink",
+  "purple",
+  "teal",
+];
+
 const rejectedSubTabs = [
   // { id: "all", name: "All" },
   { id: "system_rejected", name: "System Rejected" },
@@ -123,9 +135,14 @@ const ChallansRejected = () => {
       accessorKey: "vio_data",
       header: "Violation type",
       cell: ({ row }) => (
-        <div className="space-x-2 flex flex-wrap">
+        <div className="gap-2 flex flex-wrap max-w-[300px]">
           {row?.original?.vio_data?.map((vio, index) => (
-            <Badge key={index}>{vio?.detected_violation}</Badge>
+            <Badge
+              key={index}
+              variant={violationVariants[index < 7 ? index : 1]}
+            >
+              {vio?.violation_description}
+            </Badge>
           ))}
         </div>
       ),

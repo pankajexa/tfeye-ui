@@ -15,6 +15,19 @@ import { Input } from "@/components/ui/input";
 import { apiService } from "@/services/api";
 import { useToast } from "@/components/toast";
 
+const violationVariants = [
+  // "red",
+  // "yellow",
+  // "green",
+  "blue",
+  "orange",
+  "indigo",
+  "pink",
+  "purple",
+  "teal",
+];
+
+
 const PendingForReview = () => {
   const { data, loading, error, refetch } = useAnalyses(
     `api/v1/analyses?status=pending&items_per_page=50&page=1`
@@ -144,7 +157,7 @@ const PendingForReview = () => {
       accessorKey: "image_captured_by_name",
       header: "Capture by",
       cell: ({ row }) => (
-        <p className="text-sm text-gray-600 font-normal">
+        <p className="text-sm text-gray-600 w-fit shrink-0 font-normal">
           {row?.original?.image_captured_by_name}
         </p>
       ),
@@ -162,9 +175,9 @@ const PendingForReview = () => {
       accessorKey: "vio_data",
       header: "Violation type",
       cell: ({ row }) => (
-        <div className="space-x-2 flex flex-wrap">
+        <div className="gap-2 flex flex-wrap max-w-[300px]">
           {row?.original?.vio_data?.map((vio, index) => (
-            <Badge key={index}>{vio?.detected_violation}</Badge>
+            <Badge key={index} variant={violationVariants[index < 7 ? index : 1]}>{vio?.violation_description}</Badge>
           ))}
         </div>
       ),

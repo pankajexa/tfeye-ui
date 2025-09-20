@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { dateFormat } from "@/utils/dateFormat";
 import { BACKEND_URL } from '@/constants/globalConstants';
 
+
 const ChallansGenerated: React.FC = () => {
   const [challanData, setChallanData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
