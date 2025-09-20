@@ -493,7 +493,7 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       if (authData) {
         try {
           const parsed = JSON.parse(authData);
-          operatorToken = parsed.appSessionToken || parsed.operatorToken;
+          operatorToken = parsed.operatorToken || parsed.appSessionToken;
         } catch (error) {
           console.warn("⚠️ Could not parse auth data from localStorage");
         }
@@ -756,13 +756,13 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             parsed.appSessionToken ? "PRESENT" : "MISSING"
           );
 
-          // Try appSessionToken first (contains operator code), then operatorToken
-          operatorToken = parsed.appSessionToken || parsed.operatorToken;
+          // Try operatorToken first (TSeChallan token), then appSessionToken as fallback
+          operatorToken = parsed.operatorToken || parsed.appSessionToken;
           console.log(
             "🔍 FRONTEND: Using token type:",
-            parsed.appSessionToken
-              ? "APP_SESSION_TOKEN (JWT)"
-              : "OPERATOR_TOKEN (TSeChallan)"
+            parsed.operatorToken
+              ? "OPERATOR_TOKEN (TSeChallan)"
+              : "APP_SESSION_TOKEN (JWT) - Fallback"
           );
           console.log(
             "🔍 FRONTEND: Token preview:",
