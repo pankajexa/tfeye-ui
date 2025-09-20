@@ -74,6 +74,10 @@ const ChallansRejected = () => {
       queryParams.push(`sub_status=${encodeURIComponent(searchStatus)}`);
     }
 
+     if (currentPage !== undefined) {
+      queryParams.push(`page=${currentPage}`);
+    }
+
     if (queryParams.length > 0) {
       url += `?${queryParams.join("&")}`;
     }

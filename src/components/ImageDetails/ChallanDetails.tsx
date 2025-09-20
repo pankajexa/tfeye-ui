@@ -955,10 +955,10 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       <div className="flex items-center space-x-3">
         <div>
           <h1 className="text-2xl font-bold text-primary">Challan Details</h1>
-          <p className="text-sm text-muted font-normal">
+          {/* <p className="text-sm text-muted font-normal">
             Verify and approve detected violations to proceed with challan
             generation.
-          </p>
+          </p> */}
         </div>
       </div>
     );

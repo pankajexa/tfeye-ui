@@ -6,9 +6,11 @@ const RejectedChallanDetails = () => {
   const [searchParams] = useSearchParams();
 
   const pointName = searchParams.get("sub_status");
-
+ const page = searchParams.get("page");
   // base url
-  let url = `api/v1/analyses?status=rejected&items_per_page=50&page=1`;
+  let url = `api/v1/analyses?status=rejected&items_per_page=50&page=${
+    page || 1
+  }`;
 
   // append point_name only if present
   if (pointName) {

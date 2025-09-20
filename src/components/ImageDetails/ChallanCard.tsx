@@ -104,7 +104,10 @@ const ChallanCard = ({
 
   const updateWheelerAndVio = (wheelCode, vioData) => {
     // Get all possible violations for this wheelCode
-    const wheelCodeViolations = violationsByWheeler?.[wheelCode] || [];
+    const wheelCodeViolations =
+      violationsByWheeler?.[wheelCode] ||
+      violationsByWheeler?.[Number(wheelCode)] ||
+      [];
     setViolationsData(wheelCodeViolations);
     if (Array.isArray(vioData) && vioData.length > 0) {
       const offenceCodes = vioData.map((item) => String(item?.offence_cd));
@@ -114,14 +117,11 @@ const ChallanCard = ({
       );
 
       setViolations(filteredViolations);
-      return filteredViolations;
     } else {
       setViolations([]);
       return [];
     }
   };
-
-
 
   const getViolationDetails = () => {
     let vehicleType = null;

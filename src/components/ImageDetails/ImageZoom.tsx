@@ -48,10 +48,13 @@ const ImageZoom: React.FC<ImageZoomProps> = ({
       }
 
       // Ensure minimum scale for proper filling
-      fillScale = Math.max(fillScale, Math.min(
-        containerWidth / image.naturalWidth,
-        containerHeight / image.naturalHeight
-      ));
+      fillScale = Math.max(
+        fillScale,
+        Math.min(
+          containerWidth / image.naturalWidth,
+          containerHeight / image.naturalHeight
+        )
+      );
 
       setInitialScale(fillScale);
       setScale(fillScale);
@@ -61,37 +64,46 @@ const ImageZoom: React.FC<ImageZoomProps> = ({
 
   useEffect(() => {
     calculateInitialScale();
-    
+
     const handleResize = () => {
       calculateInitialScale();
     };
-    
+
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [calculateInitialScale]);
 
-  const handleZoomIn = useCallback((e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    e?.preventDefault();
-    if (initialScale > 0) {
-      setScale((prev) => Math.min(prev * 1.3, initialScale * 5));
-    }
-  }, [initialScale]);
+  const handleZoomIn = useCallback(
+    (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      e?.preventDefault();
+      if (initialScale > 0) {
+        setScale((prev) => Math.min(prev * 1.3, initialScale * 5));
+      }
+    },
+    [initialScale]
+  );
 
-  const handleZoomOut = useCallback((e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    e?.preventDefault();
-    if (initialScale > 0) {
-      setScale((prev) => Math.max(prev / 1.3, initialScale * 0.3));
-    }
-  }, [initialScale]);
+  const handleZoomOut = useCallback(
+    (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      e?.preventDefault();
+      if (initialScale > 0) {
+        setScale((prev) => Math.max(prev / 1.3, initialScale * 0.3));
+      }
+    },
+    [initialScale]
+  );
 
-  const handleReset = useCallback((e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    e?.preventDefault();
-    setScale(initialScale);
-    setPosition({ x: 0, y: 0 });
-  }, [initialScale]);
+  const handleReset = useCallback(
+    (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      e?.preventDefault();
+      setScale(initialScale);
+      setPosition({ x: 0, y: 0 });
+    },
+    [initialScale]
+  );
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!allowInlineZoom) return;
@@ -99,7 +111,7 @@ const ImageZoom: React.FC<ImageZoomProps> = ({
     if (containerRef.current && imageRef.current) {
       const container = containerRef.current;
       const image = imageRef.current;
-      
+
       const scaledWidth = image.naturalWidth * scale;
       const scaledHeight = image.naturalHeight * scale;
       const containerWidth = container.clientWidth;
@@ -127,7 +139,7 @@ const ImageZoom: React.FC<ImageZoomProps> = ({
     if (containerRef.current && imageRef.current) {
       const container = containerRef.current;
       const image = imageRef.current;
-      
+
       const newX = e.clientX - dragStart.x;
       const newY = e.clientY - dragStart.y;
 
@@ -151,27 +163,30 @@ const ImageZoom: React.FC<ImageZoomProps> = ({
     setIsDragging(false);
   }, []);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (!allowInlineZoom) return;
-    
-    // Prevent the event from bubbling up to prevent page zoom
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (initialScale > 0) {
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      setScale((prev) =>
-        Math.max(initialScale * 0.3, Math.min(initialScale * 5, prev * delta))
-      );
-    }
-  }, [allowInlineZoom, initialScale]);
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (!allowInlineZoom) return;
+
+      // Prevent the event from bubbling up to prevent page zoom
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (initialScale > 0) {
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        setScale((prev) =>
+          Math.max(initialScale * 0.3, Math.min(initialScale * 5, prev * delta))
+        );
+      }
+    },
+    [allowInlineZoom, initialScale]
+  );
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     if (!allowInlineZoom) return;
-    
+
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (Math.abs(scale - initialScale) < 0.1) {
       setScale(initialScale * 2);
     } else {
@@ -190,7 +205,7 @@ const ImageZoom: React.FC<ImageZoomProps> = ({
     if (containerRef.current && imageRef.current) {
       const container = containerRef.current;
       const image = imageRef.current;
-      
+
       const scaledWidth = image.naturalWidth * scale;
       const scaledHeight = image.naturalHeight * scale;
       const containerWidth = container.clientWidth;
@@ -209,7 +224,9 @@ const ImageZoom: React.FC<ImageZoomProps> = ({
       ref={containerRef}
       className="relative group w-full h-full overflow-hidden rounded-lg bg-muted flex items-center justify-center"
       onMouseEnter={() => allowInlineZoom && setShowControls(true)}
-      onMouseLeave={() => allowInlineZoom && !isDragging && setShowControls(false)}
+      onMouseLeave={() =>
+        allowInlineZoom && !isDragging && setShowControls(false)
+      }
       style={{ isolation: "isolate" }}
     >
       <img
@@ -247,39 +264,42 @@ const ImageZoom: React.FC<ImageZoomProps> = ({
       )}
 
       {/* Inline Controls - Show on hover or when zoomed */}
-      {allowInlineZoom && (showControls || Math.abs(scale - initialScale) > 0.1) && (
-        <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleZoomIn}
-            title="Zoom In"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-          <Button
-           variant="outline"
-            size="sm"
-            onClick={handleZoomOut}
-            title="Zoom Out"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleReset}
-            title="Fit to Container"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+      {allowInlineZoom &&
+        (showControls || Math.abs(scale - initialScale) > 0.1) && (
+          <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleZoomIn}
+              title="Zoom In"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleZoomOut}
+              title="Zoom Out"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReset}
+              title="Fit to Container"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
       {/* Zoom level indicator */}
       {allowInlineZoom && Math.abs(scale - initialScale) > 0.1 && (
-        <div className="absolute bottom-2 right-2 bg-card/80 backdrop-blur-sm text-card-foreground px-2 py-1 rounded text-xs font-mono z-10 border border-border">
-          {Math.round((scale / initialScale) * 100)}%
+        <div className="absolute bottom-2 right-2  text-card-foreground  z-10 ">
+          <Button variant="outline" size="sm">
+            {Math.round((scale / initialScale) * 100)}%
+          </Button>
         </div>
       )}
     </div>
