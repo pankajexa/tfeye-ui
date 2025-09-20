@@ -27,7 +27,6 @@ const violationVariants = [
   "teal",
 ];
 
-
 const PendingForReview = () => {
   const { data, loading, error, refetch } = useAnalyses(
     `api/v1/analyses?status=pending&items_per_page=50&page=1`
@@ -36,7 +35,10 @@ const PendingForReview = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPointName, setSelectedPointName] = useState(null);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  const [selectedAnalysis, setSelectedAnalysis] = useState<{ id: string; licensePlate: string } | null>(null);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<{
+    id: string;
+    licensePlate: string;
+  } | null>(null);
   const [manualLicensePlate, setManualLicensePlate] = useState("");
   const [modificationReason, setModificationReason] = useState("");
   const [duplicateLoading, setDuplicateLoading] = useState(false);
@@ -67,7 +69,9 @@ const PendingForReview = () => {
           placement: "top-right",
         });
         setShowDuplicateModal(false);
-        refetch(`api/v1/analyses?status=pending&items_per_page=50&page=${currentPage}`);
+        refetch(
+          `api/v1/analyses?status=pending&items_per_page=50&page=${currentPage}`
+        );
       } else {
         showErrorToast({
           heading: "Error",
@@ -78,7 +82,10 @@ const PendingForReview = () => {
     } catch (error) {
       showErrorToast({
         heading: "Error",
-        description: error instanceof Error ? error.message : "Failed to create duplicate analysis",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to create duplicate analysis",
         placement: "top-right",
       });
     } finally {
@@ -123,7 +130,9 @@ const PendingForReview = () => {
     if (selectedPointName) {
       queryParams.push(`point_name=${encodeURIComponent(selectedPointName)}`);
     }
-
+    if (currentPage !== undefined) {
+      queryParams.push(`page=${currentPage}`);
+    }
     if (queryParams.length > 0) {
       url += `?${queryParams.join("&")}`;
     }
@@ -177,7 +186,12 @@ const PendingForReview = () => {
       cell: ({ row }) => (
         <div className="gap-2 flex flex-wrap max-w-[300px]">
           {row?.original?.vio_data?.map((vio, index) => (
-            <Badge key={index} variant={violationVariants[index < 7 ? index : 1]}>{vio?.violation_description}</Badge>
+            <Badge
+              key={index}
+              variant={violationVariants[index < 7 ? index : 1]}
+            >
+              {vio?.violation_description}
+            </Badge>
           ))}
         </div>
       ),
@@ -219,12 +233,12 @@ const PendingForReview = () => {
           </div>
         </div>
         <ReusableTable
-            key={currentPage}
-            columns={columns}
-            data={data?.data || []}
-            visibleColumns={5}
-            currentPage={currentPage}
-            itemsPerPage={50}
+          key={currentPage}
+          columns={columns}
+          data={data?.data || []}
+          visibleColumns={5}
+          currentPage={currentPage}
+          itemsPerPage={50}
           onPageChange={(page) => {
             setCurrentPage(page);
             let url = `api/v1/analyses?status=pending&items_per_page=50&page=${page}`;
@@ -256,7 +270,9 @@ const PendingForReview = () => {
       >
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-900">Original License Plate</label>
+            <label className="text-sm font-medium text-gray-900">
+              Original License Plate
+            </label>
             <Input
               value={selectedAnalysis?.licensePlate || ""}
               disabled
@@ -275,7 +291,9 @@ const PendingForReview = () => {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-900">Modification Reason</label>
+            <label className="text-sm font-medium text-gray-900">
+              Modification Reason
+            </label>
             <Input
               value={modificationReason}
               onChange={(e) => setModificationReason(e.target.value)}

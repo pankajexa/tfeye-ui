@@ -57,6 +57,9 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
   const rejectButtonRef = useRef<HTMLButtonElement>(null);
   const approveButtonRef = useRef<HTMLButtonElement>(null);
 
+
+
+
   // Rolling preload strategy - always keep next 5 images ready
   const maintainRollingCache = async (
     currentIndex: number,
@@ -329,15 +332,15 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
   const handleUpdateViolations = async (violationTypes: any) => {
     try {
       setButtonLoader(true);
-      if (!violationTypes || violationTypes.length === 0) {
-        showErrorToast({
-          heading: "No Violations Selected",
-          description:
-            "Please select at least one violation type before updating.",
-          placement: "top-right",
-        });
-        return;
-      }
+      // if (!violationTypes || violationTypes.length === 0) {
+      //   showErrorToast({
+      //     heading: "No Violations Selected",
+      //     description:
+      //       "Please select at least one violation type before updating.",
+      //     placement: "top-right",
+      //   });
+      //   return;
+      // }
 
       const response = await fetch(
         `${globals?.BASE_URL}/api/v1/analyses/${activeChallana?.id}/violations`,

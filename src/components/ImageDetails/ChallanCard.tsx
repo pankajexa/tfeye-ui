@@ -121,6 +121,8 @@ const ChallanCard = ({
     }
   };
 
+
+
   const getViolationDetails = () => {
     let vehicleType = null;
 

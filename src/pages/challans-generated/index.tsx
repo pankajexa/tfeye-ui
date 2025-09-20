@@ -14,7 +14,7 @@ const ChallansGenerated: React.FC = () => {
   const [challanData, setChallanData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(0);
 
   // Fetch challan generation records
   const fetchChallanRecords = async () => {
@@ -25,7 +25,7 @@ const ChallansGenerated: React.FC = () => {
       // Use consistent backend URL from constants
       const backendUrl = BACKEND_URL;
       // Use the correct endpoint for generated challans from analyses API
-      const apiUrl = `${backendUrl}/api/v1/analyses?status=generated&items_per_page=50&page=1`;
+      const apiUrl = `${backendUrl}/api/challan/records?offset=${currentPage}`;
 
       console.log('🌐 Environment VITE_BACKEND_API_URL:', import.meta.env.VITE_BACKEND_API_URL);
       console.log('🌐 BACKEND_URL constant:', BACKEND_URL);
@@ -182,7 +182,7 @@ const ChallansGenerated: React.FC = () => {
         return (
           <Badge className="bg-yellow-100 text-yellow-800">
             <Clock className="w-3 h-3 mr-1" />
-            Pending
+            Initiated
           </Badge>
         );
       default:
