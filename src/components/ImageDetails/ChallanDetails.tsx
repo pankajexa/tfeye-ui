@@ -565,14 +565,40 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
         try {
           const parsed = JSON.parse(authData);
           console.log('🔍 FRONTEND: Parsed auth data:', JSON.stringify(parsed, null, 2));
+          console.log('🔍 FRONTEND: CRITICAL - Token analysis:');
+          console.log('  - parsed.operatorToken exists:', !!parsed.operatorToken);
+          console.log('  - parsed.operatorToken type:', typeof parsed.operatorToken);
+          console.log('  - parsed.operatorToken is JWT:', parsed.operatorToken && parsed.operatorToken.startsWith('eyJ'));
+          console.log('  - parsed.appSessionToken exists:', !!parsed.appSessionToken);
+          console.log('  - parsed.appSessionToken type:', typeof parsed.appSessionToken);
+          console.log('  - parsed.appSessionToken is JWT:', parsed.appSessionToken && parsed.appSessionToken.startsWith('eyJ'));
           console.log('🔍 FRONTEND: currentOfficer from localStorage:', parsed.currentOfficer);
           console.log('🔍 FRONTEND: operatorToken from localStorage:', parsed.operatorToken ? 'PRESENT' : 'MISSING');
           console.log('🔍 FRONTEND: appSessionToken from localStorage:', parsed.appSessionToken ? 'PRESENT' : 'MISSING');
           
-          // Try appSessionToken first (contains operator code), then operatorToken
-          operatorToken = parsed.appSessionToken || parsed.operatorToken;
-          console.log('🔍 FRONTEND: Using token type:', parsed.appSessionToken ? 'APP_SESSION_TOKEN (JWT)' : 'OPERATOR_TOKEN (TSeChallan)');
-          console.log('🔍 FRONTEND: Token preview:', operatorToken ? operatorToken.substring(0, 30) + '...' : 'NONE');
+          // For TSeChallan API calls, we MUST use the TSeChallan operatorToken, not our JWT
+          console.log('🔍 FRONTEND: Available tokens in localStorage:');
+          console.log('  - operatorToken (TSeChallan):', parsed.operatorToken ? parsed.operatorToken.substring(0, 30) + '...' : 'MISSING');
+          console.log('  - appSessionToken (JWT):', parsed.appSessionToken ? parsed.appSessionToken.substring(0, 30) + '...' : 'MISSING');
+          
+          // CRITICAL: Use TSeChallan operatorToken for TSeChallan API calls
+          operatorToken = parsed.operatorToken;  // ✅ MUST be TSeChallan token
+          
+          if (!operatorToken) {
+            console.error('❌ FRONTEND: No TSeChallan operatorToken found!');
+            console.error('❌ FRONTEND: Cannot make TSeChallan API calls without proper token');
+            throw new Error('TSeChallan operatorToken missing. Please log in again to get fresh tokens.');
+          }
+          
+          if (operatorToken.startsWith('eyJ')) {
+            console.error('❌ FRONTEND: CRITICAL ERROR - Using JWT instead of TSeChallan token!');
+            console.error('❌ FRONTEND: This WILL cause "Invalid Token" error from TSeChallan API');
+            console.error('❌ FRONTEND: JWT tokens cannot be used for TSeChallan API calls');
+            throw new Error('Wrong token type detected. Using JWT instead of TSeChallan operatorToken.');
+          }
+          
+          console.log('✅ FRONTEND: Using correct TSeChallan operatorToken');
+          console.log('🔍 FRONTEND: Token preview:', operatorToken.substring(0, 30) + '...');
         } catch (error) {
           console.warn("⚠️ Could not parse auth data from localStorage");
         }
