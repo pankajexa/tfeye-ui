@@ -279,29 +279,32 @@ const ChallanCard = ({
 
   const handleUpdateViolationsData = (values) => {
     try {
-      if (!Array.isArray(values)) {
-        return [];
+      // Early return if data is not valid
+      if (
+        !Array.isArray(values) ||
+        !Array.isArray(violationsData) ||
+        violationsData.length === 0
+      ) {
+        onAction([], "VIOLATIONS_UPDATE");
+        setViolations([]);
+        return;
       }
 
-      if (!Array.isArray(allViolationData) || allViolationData.length === 0) {
-        return [];
-      }
+      // Create a Map for O(1) lookup
+      const dataMap = new Map(violationsData.map((item) => [item.id, item]));
 
-      const dataMap = new Map(allViolationData?.map((item) => [item.id, item]));
-
-      const selectedViolations = values
-        .filter((id) => {
-          if (!dataMap.has(id)) {
-            return false;
-          }
-          return true;
-        })
+      // Filter valid IDs and map to their corresponding data
+      const vioData = values
+        .filter((id) => dataMap.has(id))
         .map((id) => dataMap.get(id));
+      console.log(vioData, "vioData");
 
-      onAction(selectedViolations, "VIOLATIONS_UPDATE");
-      setViolations(selectedViolations);
+      onAction(vioData, "VIOLATIONS_UPDATE");
+      setViolations(vioData);
     } catch (error) {
-      return [];
+      console.error("Error processing violations:", error);
+      onAction([], "VIOLATIONS_UPDATE");
+      setViolations([]);
     }
   };
 
@@ -727,7 +730,7 @@ const ChallanCard = ({
                                   const unique = Array.from(
                                     new Set(values as string[])
                                   );
-                                  handleUpdateViolationsData(unique);
+                                  handleUpdateViolationsData(values);
                                   // Close menu after selection
                                   close();
                                 }
