@@ -109,7 +109,7 @@ const Dashboard: React.FC = () => {
       />
       <div className="p-6 flex-grow flex flex-col space-y-6">
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Total Photos Captured */}
 
           <StatusCard
@@ -117,11 +117,11 @@ const Dashboard: React.FC = () => {
             label="Photos Captured"
             value={analysisSummary?.total_photos_captured ?? 0}
           />
-          <StatusCard
+          {/* <StatusCard
             icon={Clock}
             label="In  Process"
             value={analysisSummary?.in_process || 0}
-          />
+          /> */}
           <StatusCard
             icon={CheckCircle}
             label="Pending for Review"
@@ -160,9 +160,9 @@ const Dashboard: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Photos Captured
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     In AI Process
-                  </th>
+                  </th> */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Pending for Review
                   </th>
@@ -189,11 +189,11 @@ const Dashboard: React.FC = () => {
                         </span>
                       </td>
 
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      {/* <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                           {row?.in_process}
                         </span>
-                      </td>
+                      </td> */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                           {row?.pending_review}

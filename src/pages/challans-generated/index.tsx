@@ -34,7 +34,7 @@ const ChallansGenerated: React.FC = () => {
       // Use consistent backend URL from constants
       const backendUrl = BACKEND_URL;
       // Use the correct endpoint for generated challans from analyses API
-      const apiUrl = `${backendUrl}/api/challan/records?offset=${currentPage-1}`;
+      const apiUrl = `${backendUrl}/api/challan/records?offset=${(currentPage-1)*50}`;
 
       console.log(
         "🌐 Environment VITE_BACKEND_API_URL:",
