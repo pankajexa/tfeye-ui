@@ -7,6 +7,7 @@ import { useToast } from "@/components/toast";
 import { Challan } from "@/types";
 import { apiService } from "@/services/api";
 import { BACKEND_URL } from "@/constants/globalConstants";
+import { SingleSelect } from "../ui/SingleSelect";
 
 interface ViolationType {
   id: string | number;
@@ -54,6 +55,9 @@ const ImageDetails = ({
   wheelerType,
   setWheelerType,
   violationsByWheeler,
+  paginationSummary,
+  currentPage,
+  selectNextPage,
 }) => {
   const { success: showSuccessToast, error: showErrorToast } = useToast();
   const [rejectionReason, setRejectionReason] = useState(
@@ -204,28 +208,40 @@ const ImageDetails = ({
         <h2 className="text-lg font-medium text-gray-900">
           Challan {activeChallana?.id}
         </h2>
-        <div className="flex items-center space-x-4">
-          <div className="text-sm text-gray-500">
-            {currentIndex + 1} of {pendingChallans?.length}
+        <div className="flex items-center space-x-10">
+          <div className="w-[170px]">
+            <SingleSelect
+              label=""
+              placeholder="Select page"
+              value={String(currentPage)}
+              onValueChange={(value) => selectNextPage(value)}
+              options={paginationSummary || []}
+              searchable={paginationSummary?.length > 10}
+            />
           </div>
+          <div className="flex items-center space-x-4">
+            <div className="text-sm text-gray-500">
+              {currentIndex + 1} of {pendingChallans?.length}
+            </div>
 
-          <div className="flex items-center space-x-2">
-            <Button
-              title="Previous"
-              variant={"outline"}
-              onClick={handlePrevious}
-              disabled={currentIndex === 0}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              title="Next"
-              variant={"outline"}
-              onClick={handleNext}
-              disabled={currentIndex >= pendingChallans?.length - 1}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button
+                title="Previous"
+                variant={"outline"}
+                onClick={handlePrevious}
+                disabled={currentIndex === 0}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                title="Next"
+                variant={"outline"}
+                onClick={handleNext}
+                disabled={currentIndex >= pendingChallans?.length - 1}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

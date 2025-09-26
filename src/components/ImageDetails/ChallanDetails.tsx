@@ -1,4 +1,5 @@
 import { Header } from "@/components";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import ImageDetails from "@/components/ImageDetails/ImageDetails";
 import { ClipboardList, Eye, CheckCircle, X } from "lucide-react";
@@ -12,6 +13,33 @@ import { useToast } from "@/components/toast";
 import { useAuth } from "@/context/AuthContext";
 import { Challan } from "@/types";
 import PreviousChallanaDetails from "./PreviousChallanaDetails";
+
+function generatePaginationSummary(totalRecords, itemsPerPage) {
+  if (
+    !totalRecords ||
+    !itemsPerPage ||
+    typeof totalRecords !== "number" ||
+    typeof itemsPerPage !== "number" ||
+    totalRecords <= 0 ||
+    itemsPerPage <= 0
+  ) {
+    return [];
+  }
+
+  const pages = Math.ceil(totalRecords / itemsPerPage);
+  const summary = [];
+
+  for (let i = 0; i < pages; i++) {
+    const start = i * itemsPerPage + 1;
+    const end = Math.min((i + 1) * itemsPerPage, totalRecords);
+    summary.push({
+      id: String(i + 1),
+      name: `${start}-${end} Challans`,
+    });
+  }
+
+  return summary;
+}
 
 // Extend Window interface for global cache
 declare global {
@@ -28,10 +56,15 @@ interface ViolationType {
   penaltyPoints: string | null;
 }
 
-const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
+const ChallanDetails: React.FC<{
+  id: string | null;
+  url: string;
+  page: number | string;
+  status: string;
+}> = ({ id, url, page, status }) => {
   const { currentOfficer } = useAuth();
 
-  const { data, loading } = useAnalyses(url);
+  const { data, loading, refetch } = useAnalyses(url);
   const [pendingReviews, setPendingReviews] = useState<Challan[]>([]);
   const [showRejectOptions, setShowRejectOptions] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -53,6 +86,8 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
   const { success: showSuccessToast, error: showErrorToast } = useToast();
   const [violations, setViolations] = useState<string[]>([]);
   const [wheelerType, setWheelerType] = useState("");
+  const [currentPage, setCurrentPage] = useState(page || 1);
+  const [paginationSummary, setPaginationSummary] = useState([]);
 
   const rejectButtonRef = useRef<HTMLButtonElement>(null);
   const approveButtonRef = useRef<HTMLButtonElement>(null);
@@ -109,6 +144,12 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
       const targetIndex = data?.data?.findIndex(
         (item: any) => String(item?.id) === String(id)
       );
+
+      const pageSummary = generatePaginationSummary(
+        data?.pagination?.total_count,
+        50
+      );
+      setPaginationSummary(pageSummary);
 
       if (targetChallan && targetIndex !== -1) {
         setActiveChallana(targetChallan);
@@ -239,6 +280,20 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
   useEffect(() => {
     loadAllViolationsData();
   }, []);
+
+  const loadNextItems = (page) => {
+    setCurrentPage(page);
+    const newUrl = `api/v1/analyses?${status}&page=${page}&items_per_page=50`;
+    refetch(newUrl);
+    const url = new URL(window.location.href);
+    url.searchParams.set("page", page);
+
+    if (status) {
+      url.searchParams.set("status", status);
+    }
+
+    window.history.pushState({}, "", url);
+  };
 
   // Keyboard navigation handler
   useEffect(() => {
@@ -1484,6 +1539,9 @@ const ChallanDetails: React.FC<{ id: string; url: string }> = ({ id, url }) => {
             setViolationsByWheeler={setViolationsByWheeler}
             wheelerType={wheelerType}
             setWheelerType={setWheelerType}
+            paginationSummary={paginationSummary}
+            currentPage={currentPage}
+            selectNextPage={loadNextItems}
           />
         )}
       </div>

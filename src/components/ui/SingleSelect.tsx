@@ -43,9 +43,9 @@ export interface SelectProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, "size">,
     VariantProps<typeof selectVariants> {
   options: SelectOption[];
-  value?: string | string[];
-  defaultValue?: string | string[];
-  onValueChange?: (value: string | string[]) => void;
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
   placeholder?: string;
   label?: string;
   description?: string;
@@ -55,14 +55,11 @@ export interface SelectProps
   required?: boolean;
   disabled?: boolean;
   searchable?: boolean;
-  multiple?: boolean;
   clearable?: boolean;
-  maxSelected?: number;
-  closeOnSelectSingle?: boolean;
-  maxTagCount?: number; // for multiple display truncation
+  closeOnSelect?: boolean;
 }
 
-const Select = React.forwardRef<HTMLDivElement, SelectProps>(
+const SingleSelect = React.forwardRef<HTMLDivElement, SelectProps>(
   (
     {
       className,
@@ -81,11 +78,8 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
       required,
       disabled,
       searchable = false,
-      multiple = false,
       clearable = false,
-      maxSelected,
-      closeOnSelectSingle = true,
-      maxTagCount,
+      closeOnSelect = true,
       id,
       ...props
     },
@@ -98,27 +92,15 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
       "top" | "bottom"
     >("bottom");
 
-    const [selectedValues, setSelectedValues] = React.useState<string[]>(() => {
-      const initialValue = value || defaultValue;
-      if (multiple) {
-        return Array.isArray(initialValue)
-          ? initialValue
-          : initialValue
-          ? [initialValue]
-          : [];
-      }
-      return initialValue ? [initialValue as string] : [];
+    const [selectedValue, setSelectedValue] = React.useState<string>(() => {
+      return value || defaultValue || "";
     });
 
     // Keep internal state in sync when controlled value changes
     React.useEffect(() => {
       if (typeof value === "undefined") return;
-      if (multiple) {
-        setSelectedValues(Array.isArray(value) ? value : value ? [value] : []);
-      } else {
-        setSelectedValues(value ? [value as string] : []);
-      }
-    }, [value, multiple]);
+      setSelectedValue(value || "");
+    }, [value]);
 
     const selectId = id || `select-${Math.random().toString(36).substr(2, 9)}`;
     const descriptionId = description ? `${selectId}-description` : undefined;
@@ -165,47 +147,28 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
       );
     }, [options, searchTerm, searchable]);
 
-    const selectedOptions = React.useMemo(() => {
-      return options.filter((option) => selectedValues.includes(option?.id));
-    }, [options, selectedValues]);
+    const selectedOption = React.useMemo(() => {
+      return options.find((option) => option.id === selectedValue);
+    }, [options, selectedValue]);
 
     const handleSelect = (optionValue: string) => {
-      let newValues: string[];
-
-      if (multiple) {
-        if (selectedValues.includes(optionValue)) {
-          newValues = selectedValues.filter((v) => v !== optionValue);
-        } else {
-          if (maxSelected && selectedValues.length >= maxSelected) {
-            return;
-          }
-          newValues = Array.from(new Set([...selectedValues, optionValue]));
-        }
+      if (selectedValue === optionValue) {
+        // Deselect if same option is clicked
+        setSelectedValue("");
+        onValueChange?.("");
       } else {
-        if (selectedValues.includes(optionValue)) {
-          newValues = [];
-        } else {
-          newValues = [optionValue];
-        }
-
-        if (closeOnSelectSingle) setIsOpen(false);
+        // Select new option
+        setSelectedValue(optionValue);
+        onValueChange?.(optionValue);
       }
 
-      setSelectedValues(newValues);
-      onValueChange?.(multiple ? newValues : newValues[0] || "");
+      if (closeOnSelect) setIsOpen(false);
     };
 
     const handleClear = (e: React.MouseEvent) => {
       e.stopPropagation();
-      setSelectedValues([]);
-      onValueChange?.(multiple ? [] : "");
-    };
-
-    const handleRemoveChip = (valueToRemove: string, e: React.MouseEvent) => {
-      e.stopPropagation();
-      const newValues = selectedValues.filter((v) => v !== valueToRemove);
-      setSelectedValues(newValues);
-      onValueChange?.(multiple ? newValues : newValues[0] || "");
+      setSelectedValue("");
+      onValueChange?.("");
     };
 
     const getStateIcon = () => {
@@ -309,51 +272,17 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
             role="combobox"
             {...props}
           >
-            <div className="flex-1 flex items-center gap-1 overflow-hidden">
-              {selectedOptions.length === 0 ? (
+            <div className="flex-1 flex items-center overflow-hidden">
+              {!selectedOption ? (
                 <span className="text-gray-700">{placeholder}</span>
-              ) : multiple ? (
-                <div className="flex flex-wrap gap-1 items-center  overflow-hidden max-h-16">
-                  {selectedOptions
-                    ?.slice(
-                      0,
-                      typeof maxTagCount === "number" ? maxTagCount : 2
-                    )
-                    ?.map((option) => (
-                      <span
-                        key={option?.id}
-                        className="inline-flex items-center gap-1 px-2 py-0.5  text-gray-800 text-sm rounded-md"
-                      >
-                        {option?.name}
-                        <button
-                          type="button"
-                          onClick={(e) => handleRemoveChip(option?.id, e)}
-                          className="hover:bg-purple-50 cursor-pointer rounded-full p-0.5"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </span>
-                    ))}
-                  {(typeof maxTagCount === "number" ? maxTagCount : 2) <
-                  selectedOptions.length ? (
-                    <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 inset-ring inset-ring-gray-500/10">
-                      +
-                      {selectedOptions.length -
-                        (typeof maxTagCount === "number"
-                          ? maxTagCount
-                          : 2)}{" "}
-                      more
-                    </span>
-                  ) : null}
-                </div>
               ) : (
-                <span>{selectedOptions?.[0]?.name}</span>
+                <span>{selectedOption.name}</span>
               )}
             </div>
 
             <div className="flex items-center gap-2">
               {getStateIcon()}
-              {clearable && selectedValues.length > 0 && (
+              {clearable && selectedValue && (
                 <button
                   type="button"
                   onClick={handleClear}
@@ -395,7 +324,7 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                 </div>
               )}
 
-              <div className="py-1 ">
+              <div className="py-1">
                 {filteredOptions.length === 0 ? (
                   <div className="px-3 py-2 text-sm text-muted-foreground">
                     No options found
@@ -407,14 +336,14 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
                       className={cn(
                         "flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-gray-100",
                         option.disabled && "opacity-50 cursor-not-allowed",
-                        selectedValues?.includes(option?.id) && "bg-purple-100"
+                        selectedValue === option?.id && "bg-purple-100"
                       )}
                       onClick={() =>
                         !option.disabled && handleSelect(option?.id)
                       }
                     >
                       <span>{option?.name}</span>
-                      {selectedValues.includes(option?.id) && (
+                      {selectedValue === option?.id && (
                         <Check className="h-4 w-4 text-primary-600" />
                       )}
                     </div>
@@ -440,6 +369,6 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
   }
 );
 
-Select.displayName = "Select";
+SingleSelect.displayName = "Select";
 
-export { Select, selectVariants };
+export { SingleSelect, selectVariants };

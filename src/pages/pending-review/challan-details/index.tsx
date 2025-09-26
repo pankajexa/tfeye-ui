@@ -12,11 +12,13 @@ const PendingChallan = () => {
   let url = `api/v1/analyses?status=pending&items_per_page=50&page=${
     page || 1
   }`;
+  let status = "status=pending";
   if (pointName) {
     url += `&point_name=${encodeURIComponent(pointName)}`;
+    status += `&point_name=${encodeURIComponent(pointName)}`;
   }
 
-  return <ChallanDetails id={id} url={url} />;
+  return <ChallanDetails id={id} url={url} page={page || 1} status={status} />;
 };
 
 export default PendingChallan;
