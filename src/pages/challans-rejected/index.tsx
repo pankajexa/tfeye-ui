@@ -9,7 +9,7 @@ import { Link } from "react-router-dom";
 import ReusableTable from "@/components/ui/ReusableTable";
 import { Badge } from "@/components/ui/Badge";
 import { dateFormat } from "@/utils/dateFormat";
-import ViewChallan from './ViewChallan'
+import ViewChallan from "./ViewChallan";
 
 const violationVariants = [
   // "red",
@@ -35,7 +35,7 @@ const ChallansRejected = () => {
   );
   const [searchStatus, setSearchStatus] = useState("system_rejected");
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewDetails,setViewDetails]=useState(null)
+  const [viewDetails, setViewDetails] = useState(null);
 
   const LeftSideHeader = () => {
     return (
@@ -76,7 +76,7 @@ const ChallansRejected = () => {
       queryParams.push(`sub_status=${encodeURIComponent(searchStatus)}`);
     }
 
-     if (currentPage !== undefined) {
+    if (currentPage !== undefined) {
       queryParams.push(`page=${currentPage}`);
     }
 
@@ -104,7 +104,12 @@ const ChallansRejected = () => {
                 </p>
               </Link>
             ) : (
-              <p onClick={()=>setViewDetails(row?.original)} className="font-medium text-gray-900 hover:text-purple-500 cursor-pointer">{licensePlate}</p>
+              <p
+                onClick={() => setViewDetails(row?.original)}
+                className="font-medium text-gray-900 hover:text-purple-500 cursor-pointer"
+              >
+                {licensePlate}
+              </p>
             )}
           </div>
         );
@@ -142,26 +147,35 @@ const ChallansRejected = () => {
       header: "Description",
       cell: ({ row }) => (
         <p className="text-sm text-gray-600 font-normal">
-          {row?.original?.review_reason || 'N/A'}
+          {row?.original?.review_reason || "N/A"}
         </p>
       ),
     },
     {
-      accessorKey: "vio_data",
-      header: "Violation type",
+      accessorKey: "review_reason",
+      header: "",
       cell: ({ row }) => (
-        <div className="gap-2 flex flex-wrap max-w-[300px]">
-          {row?.original?.vio_data?.map((vio, index) => (
-            <Badge
-              key={index}
-              variant={violationVariants[index < 7 ? index : 1]}
-            >
-              {vio?.violation_description}
-            </Badge>
-          ))}
-        </div>
+        <Button variant={"link"} onClick={() => setViewDetails(row?.original)} size={"sm"}>
+          View
+        </Button>
       ),
     },
+    // {
+    //   accessorKey: "vio_data",
+    //   header: "Violation type",
+    //   cell: ({ row }) => (
+    //     <div className="gap-2 flex flex-wrap max-w-[300px]">
+    //       {row?.original?.vio_data?.map((vio, index) => (
+    //         <Badge
+    //           key={index}
+    //           variant={violationVariants[index < 7 ? index : 1]}
+    //         >
+    //           {vio?.violation_description}
+    //         </Badge>
+    //       ))}
+    //     </div>
+    //   ),
+    // },
   ];
 
   const loadNext = (url: string) => {
@@ -174,7 +188,7 @@ const ChallansRejected = () => {
         LeftSideHeader={<LeftSideHeader />}
         RightSideHeader={<RightSideHeader />}
       />
-      <ViewChallan viewDetails={viewDetails} setViewDetails={setViewDetails}/>
+      <ViewChallan viewDetails={viewDetails} setViewDetails={setViewDetails} />
       <div className="flex flex-col flex-grow m-6">
         <div>
           <div className="mb-5">
@@ -203,7 +217,7 @@ const ChallansRejected = () => {
           key={currentPage}
           columns={columns}
           data={data?.data || []}
-          visibleColumns={6}
+          visibleColumns={searchStatus === "officer_rejected" ? 6 : 4}
           currentPage={currentPage}
           itemsPerPage={50}
           onPageChange={(page) => {
