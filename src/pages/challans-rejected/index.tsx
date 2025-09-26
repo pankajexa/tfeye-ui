@@ -9,6 +9,7 @@ import { Link } from "react-router-dom";
 import ReusableTable from "@/components/ui/ReusableTable";
 import { Badge } from "@/components/ui/Badge";
 import { dateFormat } from "@/utils/dateFormat";
+import ViewChallan from './ViewChallan'
 
 const violationVariants = [
   // "red",
@@ -34,6 +35,7 @@ const ChallansRejected = () => {
   );
   const [searchStatus, setSearchStatus] = useState("system_rejected");
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewDetails,setViewDetails]=useState(null)
 
   const LeftSideHeader = () => {
     return (
@@ -94,7 +96,7 @@ const ChallansRejected = () => {
         const id = row?.original?.id;
 
         return (
-          <div className="flex gap-3 items-center text-sm">
+          <div className="flex gap-3 items-center text-sm w-[110px] shrink-0">
             {searchStatus === "system_rejected" ? (
               <Link to={getNavigationLink(id)}>
                 <p className="font-medium text-gray-900 hover:text-purple-500">
@@ -102,7 +104,7 @@ const ChallansRejected = () => {
                 </p>
               </Link>
             ) : (
-              <p className="font-medium text-gray-900">{licensePlate}</p>
+              <p onClick={()=>setViewDetails(row?.original)} className="font-medium text-gray-900 hover:text-purple-500 cursor-pointer">{licensePlate}</p>
             )}
           </div>
         );
@@ -112,7 +114,7 @@ const ChallansRejected = () => {
       accessorKey: "created_at",
       header: "Captured time",
       cell: ({ row }) => (
-        <p className="text-sm text-gray-600 font-normal">
+        <p className="text-sm text-gray-600 font-normal w-[160px] shrink-0">
           {dateFormat(row?.original?.created_at, "datetime")}
         </p>
       ),
@@ -132,6 +134,15 @@ const ChallansRejected = () => {
       cell: ({ row }) => (
         <p className="text-sm text-gray-600 font-normal">
           {row?.original?.point_name}
+        </p>
+      ),
+    },
+    {
+      accessorKey: "review_reason",
+      header: "Description",
+      cell: ({ row }) => (
+        <p className="text-sm text-gray-600 font-normal">
+          {row?.original?.review_reason || 'N/A'}
         </p>
       ),
     },
@@ -163,6 +174,7 @@ const ChallansRejected = () => {
         LeftSideHeader={<LeftSideHeader />}
         RightSideHeader={<RightSideHeader />}
       />
+      <ViewChallan viewDetails={viewDetails} setViewDetails={setViewDetails}/>
       <div className="flex flex-col flex-grow m-6">
         <div>
           <div className="mb-5">
@@ -191,7 +203,7 @@ const ChallansRejected = () => {
           key={currentPage}
           columns={columns}
           data={data?.data || []}
-          visibleColumns={5}
+          visibleColumns={6}
           currentPage={currentPage}
           itemsPerPage={50}
           onPageChange={(page) => {

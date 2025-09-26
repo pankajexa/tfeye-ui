@@ -197,7 +197,7 @@ const ChallansGenerated: React.FC = () => {
         return (
           <Badge className="bg-green-100 text-green-800">
             <CheckCircle className="w-3 h-3 mr-1" />
-            Generated {challanNumber ? `(${challanNumber})` : ""}
+            Generated 
           </Badge>
         );
       case "failed":
@@ -309,10 +309,10 @@ const ChallansGenerated: React.FC = () => {
     },
     {
       accessorKey: "point_name",
-      header: "Location",
+      header: "Description",
       cell: ({ row }) => (
-        <p className="text-sm text-gray-600 font-normal truncate max-w-32">
-          {row?.original?.point_name || row?.original?.gps_location || "N/A"}
+        <p title={row?.original?.status==="failed"? row?.original?.challan_generation_error:row?.original?.challan_number|| "N/A"} className="text-sm text-gray-600 font-normal truncate max-w-[160px]">
+          {row?.original?.status==="failed"? row?.original?.challan_generation_error:row?.original?.challan_number|| "N/A"}
         </p>
       ),
     },
