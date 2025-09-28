@@ -135,11 +135,15 @@ const ChallansRejected = () => {
       ),
     },
     {
-      accessorKey: "point_name",
-      header: "Point name",
+      accessorKey:
+        searchStatus === "officer_rejected" ? "reviewed_at" : "point_name",
+      header:
+        searchStatus === "officer_rejected" ? "Reviewed time" : "Point name",
       cell: ({ row }) => (
         <p className="text-sm text-gray-600 font-normal">
-          {row?.original?.point_name}
+          {searchStatus === "officer_rejected"
+            ? dateFormat(row?.original?.reviewed_at, "datetime")
+            : row?.original?.point_name}
         </p>
       ),
     },
