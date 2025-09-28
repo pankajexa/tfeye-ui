@@ -13,6 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Link } from "react-router-dom";
 import { dateFormat } from "@/utils/dateFormat";
 import { BACKEND_URL } from "@/constants/globalConstants";
+import TrafficDashboard  from "./TrafficDashboard";
 
 export interface StatusCardProps {
   icon: any;
@@ -160,9 +161,6 @@ const Dashboard: React.FC = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Photos Captured
                   </th>
-                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    In AI Process
-                  </th> */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Pending for Review
                   </th>
@@ -188,12 +186,6 @@ const Dashboard: React.FC = () => {
                           {row?.total_photos_captured}
                         </span>
                       </td>
-
-                      {/* <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {row?.in_process}
-                        </span>
-                      </td> */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                           {row?.pending_review}
@@ -226,7 +218,7 @@ const Dashboard: React.FC = () => {
               </tbody>
             </table>
           </div>
-          {/* <DashboardCharts /> */}
+          {/* <TrafficDashboard data={analysisSummary?.data || []} /> */}
         </div>
       </div>
     </div>

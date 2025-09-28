@@ -31,7 +31,7 @@ const rejectedSubTabs = [
 
 const ChallansRejected = () => {
   const { data, loading, error, refetch } = useAnalyses(
-    `api/v1/analyses?status=rejected&sub_status=system_rejected&items_per_page=50&page=1`
+    `api/v1/analyses?status=rejected&sub_status=system_rejected&include_all_days=true&items_per_page=50&page=1`
   );
   const [searchStatus, setSearchStatus] = useState("system_rejected");
   const [currentPage, setCurrentPage] = useState(1);
@@ -75,6 +75,7 @@ const ChallansRejected = () => {
     if (searchStatus) {
       queryParams.push(`sub_status=${encodeURIComponent(searchStatus)}`);
     }
+    queryParams.push(`include_all_days=true`);
 
     if (currentPage !== undefined) {
       queryParams.push(`page=${currentPage}`);
@@ -155,7 +156,11 @@ const ChallansRejected = () => {
       accessorKey: "review_reason",
       header: "",
       cell: ({ row }) => (
-        <Button variant={"link"} onClick={() => setViewDetails(row?.original)} size={"sm"}>
+        <Button
+          variant={"link"}
+          onClick={() => setViewDetails(row?.original)}
+          size={"sm"}
+        >
           View
         </Button>
       ),
@@ -208,7 +213,7 @@ const ChallansRejected = () => {
             onChange={(status) => {
               setSearchStatus(status);
               loadNext(
-                `api/v1/analyses?status=rejected&sub_status=${status}&items_per_page=50&page=${currentPage}`
+                `api/v1/analyses?status=rejected&sub_status=${status}&include_all_days=true&items_per_page=50&page=${currentPage}`
               );
             }}
           />
@@ -223,7 +228,7 @@ const ChallansRejected = () => {
           onPageChange={(page) => {
             setCurrentPage(page);
             loadNext(
-              `api/v1/analyses?status=rejected&sub_status=${searchStatus}&items_per_page=50&page=${page}`
+              `api/v1/analyses?status=rejected&sub_status=${searchStatus}&include_all_days=true&items_per_page=50&page=${page}`
             );
           }}
           tableHeight="h-[calc(100vh-220px)]"
