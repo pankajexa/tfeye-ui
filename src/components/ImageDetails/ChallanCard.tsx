@@ -337,7 +337,7 @@ const ChallanCard = ({
     { key: "make_brand", label: "Make", modifiedKey: "make" },
     { key: "model", label: "Model" },
     { key: "color", label: "Color" },
-    { key: "vehicle_type", label: "Vehicle Type" },
+    // { key: "vehicle_type", label: "Vehicle Type" },
   ];
 
   return (
